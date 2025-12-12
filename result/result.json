@@ -1,0 +1,89 @@
+{
+    "0": [
+        "TradeAppServlet",
+        "PingServlet2SessionLocal",
+        "OrdersAlertFilter",
+        "PingWebSocketTextAsync",
+        "TradeScenarioServlet"
+    ],
+    "1": [
+        "QuoteData",
+        "FinancialUtils",
+        "PingCDIJSFBean",
+        "PingJSONP",
+        "JSFLoginFilter"
+    ],
+    "2": [
+        "PingUpgradeServlet",
+        "PingSession2",
+        "PingSession3",
+        "PingWebSocketBinary",
+        "PingServlet2DB"
+    ],
+    "3": [
+        "KeyBlock",
+        "PingManagedExecutor",
+        "PingSession1",
+        "KeySequenceDirect",
+        "ExplicitGC"
+    ],
+    "4": [
+        "PingServletCDIBeanManagerViaCDICurrent",
+        "PingServlet2Include",
+        "PingInterceptor",
+        "PingEJBLocalDecorator",
+        "PingWebSocketTextSync",
+        "PingServlet",
+        "PingEJBLocal",
+        "PingServletCDIBeanManagerViaJNDI",
+        "PingCDIBean",
+        "PingServletCDI",
+        "PingServlet2IncludeRcv",
+        "PingManagedThread",
+        "PingServlet2JNDI"
+    ],
+    "5": [
+        "JsonMessage",
+        "PingServlet2Servlet",
+        "JsonDecoder",
+        "ActionMessage",
+        "PingServlet2PDF",
+        "DTStreamer3MDB",
+        "ExternalContextProducer",
+        "TimerStat",
+        "MDBStats",
+        "TradeActionProducer",
+        "MarketSummaryWebSocket",
+        "ActionDecoder",
+        "PingServlet2Jsp",
+        "PingServletWriter",
+        "JsonEncoder",
+        "PingWebSocketJson",
+        "PingBean",
+        "RecentStockChangeList",
+        "QuoteJSF",
+        "PingServlet2ServletRcv"
+    ],
+    "6": [
+        "RunStatsDataBean",
+        "TradeDirect",
+        "TradeConfig",
+        "MarketSummarySingleton",
+        "PingJDBCWrite",
+        "TradeSLSBBean",
+        "PingJDBCRead2JSP",
+        "AccountProfileDataBean",
+        "QuoteDataBean",
+        "TradeConfigServlet",
+        "TradeBuildDB",
+        "TradeServletAction",
+        "TradeWebContextListener",
+        "PingJDBCRead",
+        "MarketSummaryDataBean",
+        "OrderDataBean",
+        "AccountDataBean",
+        "HoldingDataBean",
+        "TradeAction",
+        "Log"
+    ]
+}

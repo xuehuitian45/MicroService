@@ -1,0 +1,9 @@
+{
+  "cohesion": 0.8013, // 内部调用占比（越高越好）
+  "modularity": 0.703,  // 模块度（越高越好）
+  "balance": 0.3642,  // 平衡性（越高越好）
+  "maintainability_index": 71.4,  // 可维护性指数（越高越好）
+  "quality_score": 69.64, // 质量得分（越高越好）
+  "semantic_coherence": 0.5857, // 语义一致性（越高越好）
+  "semantic_coupling": 0.3, // 语义耦合度（越低越好）
+}

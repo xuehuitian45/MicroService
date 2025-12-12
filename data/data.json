@@ -1,0 +1,986 @@
+[
+    {
+        "id": 0,
+        "name": "JsonMessage",
+        "description": "JsonMessage节点用于创建、解析或处理JSON格式的消息，支持数据的序列化与反序列化，便于在网络间传输结构化信息。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 1,
+        "name": "PingServletCDIBeanManagerViaCDICurrent",
+        "description": "该代码节点通过CDI（Contexts and Dependency Injection）机制，利用当前的BeanManager来处理Ping请求。它展示了如何在Servlet中结合使用CDI功能，以实现对请求的响应。",
+        "methods": [],
+        "dependencies": [
+            5
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 2,
+        "name": "PingServlet2Include",
+        "description": "PingServlet2Include是一个用于检测或保持应用服务器连接活跃的代码节点，通过HTTP请求实现，并利用了include机制来集成其他资源或内容。",
+        "methods": [],
+        "dependencies": [
+            12,
+            55
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 3,
+        "name": "PingServlet2Servlet",
+        "description": "该代码节点PingServlet2Servlet主要用于在两个Servlet之间实现通信，通过发送简单的请求来测试或验证另一个Servlet的可达性和响应性。",
+        "methods": [],
+        "dependencies": [
+            63,
+            72
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 4,
+        "name": "PingUpgradeServlet",
+        "description": "处理HTTP请求，用于检查连接状态并尝试升级服务功能。",
+        "methods": [],
+        "dependencies": [
+            4,
+            70
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 5,
+        "name": "PingInterceptor",
+        "description": "PingInterceptor 主要用于在请求中添加一个简单的ping操作，通常用来检测服务可用性或测量响应时间。",
+        "methods": [],
+        "dependencies": [
+            53
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 6,
+        "name": "PingEJBLocalDecorator",
+        "description": "PingEJBLocalDecorator是一个装饰器类，用于增强或修改对本地EJB（Enterprise JavaBeans）的Ping操作调用。它可以在不改变原有EJB接口的情况下，添加额外的行为如日志记录、性能监控等。",
+        "methods": [],
+        "dependencies": [
+            27
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 7,
+        "name": "QuoteData",
+        "description": "QuoteData节点主要用于存储和处理与报价相关的数据，包括但不限于价格、数量及其它交易条件。",
+        "methods": [],
+        "dependencies": [
+            11
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 8,
+        "name": "RunStatsDataBean",
+        "description": "RunStatsDataBean 用于封装运行时统计数据，提供了一种结构化的方式来存储和访问如执行时间、调用次数等性能指标。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 9,
+        "name": "KeyBlock",
+        "description": "KeyBlock代表一个包含关键数据或功能的代码块，通常用于加密、解密过程中的关键步骤或是程序中对重要信息进行处理的部分。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 10,
+        "name": "TradeDirect",
+        "description": "TradeDirect 是一个用于直接执行交易操作的代码节点，支持用户快速完成买卖订单等交易活动。",
+        "methods": [],
+        "dependencies": [
+            41,
+            8,
+            70,
+            10,
+            33,
+            38,
+            64,
+            12,
+            62,
+            32,
+            67
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 11,
+        "name": "FinancialUtils",
+        "description": "FinancialUtils 是一个工具类，提供了多种金融计算相关的静态方法，如利息计算、折现值等，便于进行财务分析和处理。",
+        "methods": [],
+        "dependencies": [
+            67
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 12,
+        "name": "TradeConfig",
+        "description": "TradeConfig 用于配置交易相关参数，如交易限额、手续费率等，确保交易活动符合预设规则。",
+        "methods": [],
+        "dependencies": [
+            12,
+            70
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 13,
+        "name": "JsonDecoder",
+        "description": "JsonDecoder用于将JSON格式的数据解码为Python中的数据结构，如字典或列表。它支持处理基本的JSON类型，并能够转换成相应的Python对象。",
+        "methods": [],
+        "dependencies": [
+            0
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 14,
+        "name": "PingCDIJSFBean",
+        "description": "该代码节点用于通过CDI（Contexts and Dependency Injection）方式调用JSF（JavaServer Faces）中的Bean，实现Ping功能，通常用来测试或验证Bean的可达性和响应性。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 15,
+        "name": "MarketSummarySingleton",
+        "description": "MarketSummarySingleton是一个单例类，用于提供市场概要信息的唯一访问点，确保所有数据请求都通过一个共享实例来处理，从而维持数据的一致性和统一性。",
+        "methods": [],
+        "dependencies": [
+            15,
+            70,
+            12,
+            67,
+            62,
+            33,
+            32,
+            64
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 16,
+        "name": "ActionMessage",
+        "description": "ActionMessage 是用于封装和传递操作消息的对象，通常包含了执行特定动作所需的信息或参数。",
+        "methods": [],
+        "dependencies": [
+            70
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 17,
+        "name": "PingJDBCWrite",
+        "description": "PingJDBCWrite是一个用于测试或验证与JDBC（Java数据库连接）兼容的数据库连接状态的功能节点，通过执行简单的写操作来确保能够成功地向数据库写入数据。",
+        "methods": [],
+        "dependencies": [
+            12,
+            10,
+            33
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 18,
+        "name": "PingServlet2PDF",
+        "description": "该代码节点负责接收Ping请求，并将结果或相关信息转换成PDF格式文档返回。",
+        "methods": [],
+        "dependencies": [
+            63,
+            70
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 19,
+        "name": "TradeAppServlet",
+        "description": "TradeAppServlet是处理交易应用程序HTTP请求的核心组件，负责接收、处理来自客户端的请求，并返回适当的响应。它在Web应用中扮演着后端逻辑处理器的角色，支持包括查询、下单、取消等在内的多种交易操作。",
+        "methods": [],
+        "dependencies": [
+            19,
+            69,
+            42
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 20,
+        "name": "PingSession2",
+        "description": "PingSession2用于定期发送ping请求以检查与远程服务器的连接状态，确保通信链路的持续可用性。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 21,
+        "name": "PingWebSocketTextSync",
+        "description": "PingWebSocketTextSync节点用于通过WebSocket连接发送文本格式的Ping消息，并同步等待Pong响应，以测试或保持连接活跃。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 22,
+        "name": "PingManagedExecutor",
+        "description": "PingManagedExecutor 是一个用于执行管理任务的调度器，特别设计用来定期检查或'ping'服务以确保其可用性。它能够配置执行频率和超时设置，并支持异步操作。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 23,
+        "name": "PingServlet2SessionLocal",
+        "description": "该代码节点主要功能是通过Servlet实现对本地会话的Ping操作，用于检测或保持客户端与服务器之间的会话连接状态。",
+        "methods": [],
+        "dependencies": [
+            12,
+            28
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 24,
+        "name": "DTStreamer3MDB",
+        "description": "DTStreamer3MDB是一个用于处理和流式传输三维模型数据的组件，支持高效的数据管理和访问。",
+        "methods": [],
+        "dependencies": [
+            70,
+            41,
+            37,
+            12,
+            44
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 25,
+        "name": "PingSession1",
+        "description": "PingSession1是一个用于检查与特定会话连接状态的功能节点，通过发送ping请求来验证通信是否正常。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 26,
+        "name": "PingServlet",
+        "description": "PingServlet是一个用于响应客户端ping请求的Java Servlet，主要功能是检测服务器是否可达及响应时间。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 27,
+        "name": "PingEJBLocal",
+        "description": "PingEJBLocal是一个本地Enterprise Java Bean (EJB)接口，用于在同一Java虚拟机内执行远程方法调用，通常用来测试EJB容器的响应性和连通性。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 28,
+        "name": "TradeSLSBBean",
+        "description": "这是一个处理交易相关业务逻辑的会话Bean，主要负责实现服务层中的交易功能，如创建、更新或查询交易信息。",
+        "methods": [],
+        "dependencies": [
+            70,
+            10,
+            32,
+            64,
+            33,
+            28,
+            12,
+            62,
+            67,
+            69
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 29,
+        "name": "ExternalContextProducer",
+        "description": "ExternalContextProducer用于创建和管理外部上下文，支持将外部系统或服务的信息集成到当前应用环境中，促进不同系统间的通信与数据交换。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 30,
+        "name": "PingSession3",
+        "description": "PingSession3 用于定期发送ping请求以检查会话的活跃状态，确保连接或通信通道保持开放和响应。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 31,
+        "name": "PingJDBCRead2JSP",
+        "description": "此代码节点主要负责通过JDBC从数据库读取数据，并将获取的信息传递给JSP页面进行展示。它架起了后端数据库操作与前端网页呈现之间的桥梁。",
+        "methods": [],
+        "dependencies": [
+            10,
+            12,
+            33
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 32,
+        "name": "AccountProfileDataBean",
+        "description": "AccountProfileDataBean 是一个数据传输对象，主要用于封装账户个人资料信息，便于在不同层之间传递。",
+        "methods": [],
+        "dependencies": [
+            32
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 33,
+        "name": "QuoteDataBean",
+        "description": "QuoteDataBean 是一个数据传输对象，主要用于封装报价相关的数据，支持在应用程序的不同层之间传递报价信息。",
+        "methods": [],
+        "dependencies": [
+            12,
+            33
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 34,
+        "name": "TradeConfigServlet",
+        "description": "TradeConfigServlet 用于处理与交易配置相关的HTTP请求，提供包括获取、更新或删除交易设置等功能。",
+        "methods": [],
+        "dependencies": [
+            34,
+            8,
+            61,
+            70,
+            69,
+            12,
+            10,
+            35
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 35,
+        "name": "TradeBuildDB",
+        "description": "TradeBuildDB 用于构建交易数据库，支持存储和管理交易相关数据。",
+        "methods": [],
+        "dependencies": [
+            10,
+            35,
+            70,
+            12,
+            64
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 36,
+        "name": "PingJSONP",
+        "description": "该代码节点用于通过JSONP技术实现跨域请求，主要用于从远程服务器获取数据并检查其可用性或响应时间。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 37,
+        "name": "TimerStat",
+        "description": "TimerStat是一个用于统计时间的代码节点，主要用于记录和分析程序运行时长，帮助开发者了解各部分代码执行效率。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 38,
+        "name": "KeySequenceDirect",
+        "description": "KeySequenceDirect用于直接处理或生成一系列按键操作，支持快速执行复杂的键盘输入序列。",
+        "methods": [],
+        "dependencies": [
+            38,
+            9,
+            70
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 39,
+        "name": "OrdersAlertFilter",
+        "description": "OrdersAlertFilter用于筛选并处理订单警报，根据预设条件过滤出需要特别关注的订单信息。",
+        "methods": [],
+        "dependencies": [
+            12,
+            19,
+            69,
+            70
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 40,
+        "name": "ExplicitGC",
+        "description": "该代码节点用于显式地触发垃圾回收过程，以清理不再使用的对象并释放内存。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 41,
+        "name": "MDBStats",
+        "description": "MDBStats 代码节点主要用于收集和展示MongoDB数据库的各项性能指标及统计信息，帮助开发者监控数据库状态，优化查询效率。",
+        "methods": [],
+        "dependencies": [
+            41,
+            37
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 42,
+        "name": "TradeServletAction",
+        "description": "处理交易请求的核心控制器，负责接收和响应与交易相关的HTTP请求，实现业务逻辑的调用及结果返回。",
+        "methods": [],
+        "dependencies": [
+            69,
+            12,
+            42,
+            64,
+            11,
+            33,
+            62,
+            32,
+            67
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 43,
+        "name": "TradeActionProducer",
+        "description": "负责生成交易操作指令，用于执行买卖等交易活动。",
+        "methods": [],
+        "dependencies": [
+            69
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 44,
+        "name": "MarketSummaryWebSocket",
+        "description": "MarketSummaryWebSocket是一个用于通过WebSocket协议实时获取市场摘要信息的代码节点。它能够帮助用户及时了解最新的市场动态，包括但不限于价格、交易量等关键指标。",
+        "methods": [],
+        "dependencies": [
+            70,
+            65,
+            16,
+            69
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 45,
+        "name": "ActionDecoder",
+        "description": "ActionDecoder负责解析编码后的动作数据，将其转换为可执行或可理解的格式。它在处理动作相关的数据流时起着关键作用，确保信息能够被系统其他部分正确解读和使用。",
+        "methods": [],
+        "dependencies": [
+            70,
+            16
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 46,
+        "name": "PingServlet2Jsp",
+        "description": "PingServlet2Jsp是一个用于处理HTTP请求的Java Servlet，它通过调用JSP页面来响应客户端的ping请求，实现简单的服务器端到客户端的信息反馈。",
+        "methods": [],
+        "dependencies": [
+            63
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 47,
+        "name": "PingWebSocketTextAsync",
+        "description": "该代码节点用于异步地向WebSocket服务器发送文本消息，并等待接收响应，常用于检测连接状态或进行简单的通讯测试。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 48,
+        "name": "TradeWebContextListener",
+        "description": "TradeWebContextListener是一个监听器，主要用于在Web应用启动时初始化交易相关上下文环境，并在应用关闭时清理资源。它确保了交易服务能够在应用生命周期内正确配置和安全终止。",
+        "methods": [],
+        "dependencies": [
+            70,
+            12,
+            10
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 49,
+        "name": "PingWebSocketBinary",
+        "description": "该代码节点用于通过WebSocket协议发送二进制格式的Ping帧，以检查连接状态或维持活动连接。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 50,
+        "name": "PingJDBCRead",
+        "description": "此代码节点用于通过JDBC连接读取数据库，并执行Ping操作以检查连接的有效性。",
+        "methods": [],
+        "dependencies": [
+            10,
+            12,
+            33
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 51,
+        "name": "PingServletWriter",
+        "description": "该代码节点主要负责生成并发送HTTP响应至客户端，特别是在处理Ping请求时提供快速响应。它通常用于健康检查或服务可用性验证场景中。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 52,
+        "name": "PingServletCDIBeanManagerViaJNDI",
+        "description": "此代码节点通过JNDI查找并使用CDI Bean Manager来处理Ping请求，展示了如何在Servlet中结合使用上下文和依赖注入（CDI）与Java命名和目录接口（JNDI）进行Bean管理。",
+        "methods": [],
+        "dependencies": [
+            5
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 53,
+        "name": "PingCDIBean",
+        "description": "PingCDIBean 是一个用于测试或验证CDI（Contexts and Dependency Injection）容器中Bean是否正确部署和可用的简单组件。它通常实现了一个基本方法来发送并接收'ping'响应，以此来确认连接性和功能性。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 54,
+        "name": "PingServletCDI",
+        "description": "PingServletCDI 是一个基于Java EE的简单示例servlet，它通过上下文依赖注入(Contextual Dependency Injection, CDI)来演示如何在web应用中使用CDI功能。此servlet主要用于响应客户端的ping请求，并返回服务端的状态信息。",
+        "methods": [],
+        "dependencies": [
+            5,
+            6
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 55,
+        "name": "PingServlet2IncludeRcv",
+        "description": "PingServlet2IncludeRcv是一个用于处理包含请求的Servlet代码节点，主要用于接收并响应通过请求包含机制传递过来的数据。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 56,
+        "name": "JsonEncoder",
+        "description": "JsonEncoder用于将Python对象转换为JSON格式的字符串，便于数据的存储或传输。",
+        "methods": [],
+        "dependencies": [
+            0
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 57,
+        "name": "TradeScenarioServlet",
+        "description": "处理交易场景相关请求的Servlet，负责接收和响应与特定交易情境有关的数据。",
+        "methods": [],
+        "dependencies": [
+            57,
+            12,
+            19
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 58,
+        "name": "JSFLoginFilter",
+        "description": "JSFLoginFilter 是一个用于JavaServer Faces (JSF)应用程序的过滤器，主要功能是拦截用户请求并进行身份验证，确保只有经过授权的用户才能访问受保护的资源。",
+        "methods": [],
+        "dependencies": [
+            69,
+            68,
+            7,
+            14
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 59,
+        "name": "PingManagedThread",
+        "description": "该代码节点用于检查或测试与指定托管线程的连接状态。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 60,
+        "name": "PingWebSocketJson",
+        "description": "PingWebSocketJson节点用于通过WebSocket连接发送JSON格式的Ping消息，以维持连接活跃或检查连接状态。",
+        "methods": [],
+        "dependencies": [
+            0,
+            56
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 61,
+        "name": "MarketSummaryDataBean",
+        "description": "MarketSummaryDataBean是一个数据实体类，用于封装和表示市场摘要信息，如指数、成交量等关键统计数据。",
+        "methods": [],
+        "dependencies": [
+            33,
+            12,
+            61,
+            11
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 62,
+        "name": "OrderDataBean",
+        "description": "OrderDataBean 是一个数据载体类，主要用于封装订单相关的数据信息，便于在不同层或组件之间传递。",
+        "methods": [],
+        "dependencies": [
+            62,
+            33
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 63,
+        "name": "PingBean",
+        "description": "PingBean是一个用于执行网络连通性测试的简单组件，主要功能是发送ICMP请求到指定的目标地址，并接收响应以判断目标是否可达。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 64,
+        "name": "AccountDataBean",
+        "description": "AccountDataBean 是一个数据传输对象，主要用于封装账户相关的信息，如账号、余额等属性，便于在不同层之间传递。",
+        "methods": [],
+        "dependencies": [
+            64,
+            32
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 65,
+        "name": "RecentStockChangeList",
+        "description": "展示最近股票变动的列表。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 66,
+        "name": "PingServlet2JNDI",
+        "description": "PingServlet2JNDI 是一个用于测试JNDI连接的Servlet，它通过尝试访问预设的JNDI资源来验证应用服务器上JNDI配置的正确性和可用性。",
+        "methods": [],
+        "dependencies": [],
+        "edge_types": []
+    },
+    {
+        "id": 67,
+        "name": "HoldingDataBean",
+        "description": "HoldingDataBean是一个用于封装和处理持有数据的对象，通常作为数据传输对象在不同层之间传递信息。",
+        "methods": [],
+        "dependencies": [
+            67,
+            33
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 68,
+        "name": "QuoteJSF",
+        "description": "该代码节点用于在JSF（JavaServer Faces）应用程序中引用或展示外部资源，如JavaScript文件或样式表。它帮助开发者轻松地将静态资源集成到页面中，提升开发效率和用户体验。",
+        "methods": [],
+        "dependencies": [
+            68,
+            29,
+            43,
+            69,
+            33,
+            7
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 69,
+        "name": "TradeAction",
+        "description": "TradeAction代码节点主要负责执行交易相关的动作，如买入、卖出等操作，是实现自动化交易策略的关键部分。",
+        "methods": [],
+        "dependencies": [
+            70,
+            69,
+            12,
+            28,
+            64,
+            33,
+            32,
+            62
+        ],
+        "edge_types": [
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 70,
+        "name": "Log",
+        "description": "记录程序运行时的信息，用于调试和监控。",
+        "methods": [],
+        "dependencies": [
+            70,
+            12
+        ],
+        "edge_types": [
+            "call",
+            "call"
+        ]
+    },
+    {
+        "id": 71,
+        "name": "PingServlet2DB",
+        "description": "PingServlet2DB 是一个用于测试或监控数据库连接的Servlet。它通过执行简单的数据库查询来检查应用服务器与数据库之间的连通性，确保应用程序能够正常访问数据库资源。",
+        "methods": [],
+        "dependencies": [
+            10
+        ],
+        "edge_types": [
+            "call"
+        ]
+    },
+    {
+        "id": 72,
+        "name": "PingServlet2ServletRcv",
+        "description": "该代码节点PingServlet2ServletRcv主要用于接收来自其他Servlet的ping请求，实现Servlet间通信与健康检查。",
+        "methods": [],
+        "dependencies": [
+            63
+        ],
+        "edge_types": [
+            "call"
+        ]
+    }
+]
