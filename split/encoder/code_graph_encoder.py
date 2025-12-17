@@ -190,12 +190,22 @@ class GraphormerLayer(MessagePassing):
         edge_types: torch.Tensor,
         pos_encoding: torch.Tensor,
         device: torch.device,
+        edge_weights: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         返回形状 [num_heads, N, N] 的注意力偏置矩阵。
         - SPD 偏置：从 pos_encoding 的前 N 列提取（N x N 的最短路径编码，已归一化到 [0,1]），
           映射到 0..max_dist 的整数桶后查表；
-        - 边类型偏置：对直接边 (i->j) 为每个 head 加上对应的偏置。
+        - 边类型偏置：对直接边 (i->j) 为每个 head 加上对应的偏置；
+        - 边权重偏置：对直接边 (i->j) 应用权重缩放，高权重边增加注意力。
+        
+        Args:
+            num_nodes: 节点数
+            edge_index: [2, E] 边索引
+            edge_types: [E] 边类型索引
+            pos_encoding: [N, N+k] 位置编码
+            device: 计算设备
+            edge_weights: [E] 边权重（可选），如果提供则应用到注意力偏置
         """
         attn_bias = torch.zeros(self.num_heads, num_nodes, num_nodes, device=device)
 
@@ -208,11 +218,19 @@ class GraphormerLayer(MessagePassing):
             spd_bias = self.spd_bias_table(spd_bucket)  # [N, N, H]
             attn_bias = attn_bias + spd_bias.permute(2, 0, 1)  # -> [H, N, N]
 
-        # 直接边类型偏置
+        # 直接边类型偏置 + 边权重偏置
         if edge_index.numel() > 0 and edge_types.numel() > 0:
             src, dst = edge_index[0], edge_index[1]
             # 每条边一个每头偏置：[E, H]
             e_bias = self.edge_type_bias(edge_types)  # [E, H]
+            
+            # 如果提供了边权重，应用权重缩放
+            # 权重范围通常是 [0, 1]，我们将其缩放到 [-1, 1] 范围以增加注意力
+            if edge_weights is not None:
+                # 将权重从 [0, 1] 缩放到 [-1, 1]，使得权重越高，偏置越大
+                weight_scale = (edge_weights * 2.0 - 1.0).unsqueeze(1)  # [E, 1]
+                e_bias = e_bias * weight_scale  # [E, H]
+            
             # 累加到 [H, N, N]
             for h in range(self.num_heads):
                 attn_bias[h].index_put_((src, dst), e_bias[:, h], accumulate=True)
@@ -225,6 +243,7 @@ class GraphormerLayer(MessagePassing):
         edge_index: torch.Tensor,
         edge_types: torch.Tensor,
         pos_encoding: torch.Tensor,
+        edge_weights: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -232,6 +251,7 @@ class GraphormerLayer(MessagePassing):
             edge_index: [2, E] 有向边索引
             edge_types: [E] 边类型索引
             pos_encoding: [N, N + k]，前 N 列为 i->j 的最短路径距离编码（归一化到 [0,1]）
+            edge_weights: [E] 边权重（可选），基于边类型的权重
 
         Returns:
             [N, D] 更新后的节点表示
@@ -253,7 +273,8 @@ class GraphormerLayer(MessagePassing):
         v = self.v_proj(x_norm).view(N, self.num_heads, self.head_dim).transpose(0, 1)  # [H, N, Hd]
 
         # 构建注意力偏置（可作为 additive mask 传入 SDPA）
-        attn_bias = self._build_attention_bias(N, edge_index, edge_types, pos_encoding, device)  # [H, N, N]
+        # 包括 SPD 偏置、边类型偏置和边权重偏置
+        attn_bias = self._build_attention_bias(N, edge_index, edge_types, pos_encoding, device, edge_weights)  # [H, N, N]
 
         # 使用 PyTorch 2.x 的 Flash-Attention 接口（若可用）
         q_t = q.unsqueeze(0)  # [1, H, N, Hd]
@@ -339,7 +360,8 @@ class StructuralEncoder(nn.Module):
         x: torch.Tensor,
         edge_index: torch.Tensor,
         edge_types: torch.Tensor,
-        pos_encoding: torch.Tensor
+        pos_encoding: torch.Tensor,
+        edge_weights: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Args:
@@ -347,6 +369,7 @@ class StructuralEncoder(nn.Module):
             edge_index: [2, num_edges] 边索引
             edge_types: [num_edges] 边类型
             pos_encoding: [num_nodes, pos_dim] 位置编码（前 N 列为 SPD）
+            edge_weights: [num_edges] 边权重（可选），基于边类型的权重
 
         Returns:
             [num_nodes, output_dim] 节点的结构表示
@@ -357,7 +380,7 @@ class StructuralEncoder(nn.Module):
 
         # 通过Graphormer层
         for layer in self.graphormer_layers:
-            x = layer(x, edge_index, edge_types, pos_encoding)
+            x = layer(x, edge_index, edge_types, pos_encoding, edge_weights)
 
         # 输出投影
         x = self.output_proj(x)
@@ -663,7 +686,8 @@ class CodeGraphEncoder(nn.Module):
         edge_index: torch.Tensor,
         edge_types: torch.Tensor,
         pos_encoding: torch.Tensor,
-        texts: List[str]
+        texts: List[str],
+        edge_weights: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Args:
@@ -672,12 +696,13 @@ class CodeGraphEncoder(nn.Module):
             edge_types: [num_edges] 边类型
             pos_encoding: [num_nodes, pos_dim] 位置编码
             texts: 节点对应的文本（类名+注释+方法签名）
+            edge_weights: [num_edges] 边权重（可选），基于边类型的权重
 
         Returns:
             [num_nodes, final_output_dim] 最终节点向量
         """
-        # 结构编码
-        structural_repr = self.structural_encoder(x, edge_index, edge_types, pos_encoding)
+        # 结构编码（使用边权重）
+        structural_repr = self.structural_encoder(x, edge_index, edge_types, pos_encoding, edge_weights)
 
         # 语义编码
         semantic_repr = self.semantic_encoder(texts)
@@ -708,9 +733,12 @@ class CodeGraphDataBuilder:
         for i, edge_type in enumerate(sorted(edge_types_set)):
             self.edge_type_to_idx[edge_type] = i
 
-    def build_graph_data(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, List[str]]:
+    def build_graph_data(self, edge_type_weights=None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, List[str], torch.Tensor]:
         """
         构建图数据
+
+        Args:
+            edge_type_weights: 边类型权重配置，如果提供则应用权重到边
 
         Returns:
             x: 节点特征
@@ -718,17 +746,25 @@ class CodeGraphDataBuilder:
             edge_types: 边类型
             pos_encoding: 位置编码
             texts: 节点文本
+            edge_weights: 边权重（基于类型）
         """
         # 构建邻接矩阵
         adj_matrix = np.zeros((self.num_nodes, self.num_nodes))
         edge_list = []
         edge_type_list = []
+        edge_weight_list = []
 
         for src_id, cls in enumerate(self.classes):
             for dst_id, edge_type in zip(cls.dependencies, cls.edge_types):
-                adj_matrix[src_id, dst_id] = 1
+                # 获取边的权重
+                weight = 1.0
+                if edge_type_weights is not None:
+                    weight = edge_type_weights.get_weight(edge_type)
+                
+                adj_matrix[src_id, dst_id] = weight
                 edge_list.append([src_id, dst_id])
                 edge_type_list.append(self.edge_type_to_idx[edge_type])
+                edge_weight_list.append(weight)
 
         # 转换为张量
         x = torch.ones(self.num_nodes, 1, dtype=torch.float32)
@@ -736,9 +772,11 @@ class CodeGraphDataBuilder:
         if edge_list:
             edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
             edge_types = torch.tensor(edge_type_list, dtype=torch.long)
+            edge_weights = torch.tensor(edge_weight_list, dtype=torch.float32)
         else:
             edge_index = torch.zeros((2, 0), dtype=torch.long)
             edge_types = torch.zeros(0, dtype=torch.long)
+            edge_weights = torch.zeros(0, dtype=torch.float32)
 
         # 计算位置编码
         pos_encoder = PositionalEncoding(self.num_nodes)
@@ -756,119 +794,4 @@ class CodeGraphDataBuilder:
             text = f"{cls.name}. {cls.description}. Methods: {', '.join(cls.methods)}"
             texts.append(text)
 
-        return x, edge_index, edge_types, pos_encoding, texts
-
-
-# 使用示例
-if __name__ == "__main__":
-    # 创建示例数据
-    classes = [
-        CodeClass(
-            id=0,
-            name="UserService",
-            description="用户服务类，处理用户相关的业务逻辑",
-            methods=["get_user", "create_user", "update_user", "delete_user"],
-            dependencies=[1, 2],
-            edge_types=["import", "call"]
-        ),
-        CodeClass(
-            id=1,
-            name="UserRepository",
-            description="用户数据访问层，与数据库交互",
-            methods=["query", "insert", "update", "delete"],
-            dependencies=[3],
-            edge_types=["import"]
-        ),
-        CodeClass(
-            id=2,
-            name="AuthService",
-            description="认证服务，处理用户认证和授权",
-            methods=["authenticate", "authorize", "validate_token"],
-            dependencies=[1],
-            edge_types=["call"]
-        ),
-        CodeClass(
-            id=3,
-            name="Database",
-            description="数据库连接和操作类",
-            methods=["connect", "execute", "close"],
-            dependencies=[],
-            edge_types=[]
-        ),
-        CodeClass(
-            id=4,
-            name="CacheService",
-            description="缓存服务，提高性能",
-            methods=["get", "set", "delete", "clear"],
-            dependencies=[3],
-            edge_types=["call"]
-        ),
-    ]
-
-    # 构建图数据
-    builder = CodeGraphDataBuilder(classes)
-    x, edge_index, edge_types, pos_encoding, texts = builder.build_graph_data()
-
-    print("=" * 80)
-    print("代码图编码系统演示")
-    print("=" * 80)
-    print(f"\n节点数: {x.size(0)}")
-    print(f"边数: {edge_index.size(1)}")
-    print(f"边类型数: {len(builder.edge_type_to_idx)}")
-    print(f"位置编码维度: {pos_encoding.size(1)}")
-
-    print("\n节点信息:")
-    for i, cls in enumerate(classes):
-        print(f"  {i}: {cls.name} - {cls.description}")
-
-    print("\n边类型映射:")
-    for edge_type, idx in builder.edge_type_to_idx.items():
-        print(f"  {edge_type}: {idx}")
-
-    # 初始化模型
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"\n使用设备: {device}")
-
-    model = CodeGraphEncoder(
-        structural_hidden_dim=256,
-        structural_output_dim=256,
-        semantic_output_dim=256,
-        final_output_dim=512,
-        num_edge_types=len(builder.edge_type_to_idx),
-        num_structural_layers=3,
-        num_heads=8,
-        dropout=0.1
-    ).to(device)
-
-    # 移动数据到设备
-    x = x.to(device)
-    edge_index = edge_index.to(device)
-    edge_types = edge_types.to(device)
-    pos_encoding = pos_encoding.to(device)
-
-    # 前向传播
-    print("\n执行前向传播...")
-    with torch.no_grad():
-        node_embeddings = model(x, edge_index, edge_types, pos_encoding, texts)
-
-    print(f"\n最终节点向量形状: {node_embeddings.shape}")
-    print(f"每个节点的向量维度: {node_embeddings.size(1)}")
-
-    print("\n节点向量统计:")
-    for i, cls in enumerate(classes):
-        embedding = node_embeddings[i]
-        print(f"  {cls.name}:")
-        print(f"    L2范数: {torch.norm(embedding).item():.4f}")
-        print(f"    均值: {embedding.mean().item():.4f}")
-        print(f"    标准差: {embedding.std().item():.4f}")
-
-    print("\n节点间相似度 (余弦相似度):")
-    node_embeddings_normalized = F.normalize(node_embeddings, p=2, dim=1)
-    similarity_matrix = torch.matmul(node_embeddings_normalized, node_embeddings_normalized.t())
-
-    for i in range(min(3, len(classes))):
-        for j in range(i + 1, min(3, len(classes))):
-            sim = similarity_matrix[i, j].item()
-            print(f"  {classes[i].name} <-> {classes[j].name}: {sim:.4f}")
-
-    print("\n✓ 系统运行成功!")
+        return x, edge_index, edge_types, pos_encoding, texts, edge_weights

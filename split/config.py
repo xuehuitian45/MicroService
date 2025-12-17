@@ -34,6 +34,50 @@ class DataConfig:
     result_path: str = "/Users/xht/Downloads/MicroService/result/result.json"
 
 @dataclass
+class EdgeTypeWeightConfig:
+    """边类型权重配置"""
+    type_weights: dict = None  # 边类型到权重的映射，如 {"call": 1.0, "import": 0.8}
+    
+    def __post_init__(self):
+        if self.type_weights is None:
+            # 默认权重配置
+            self.type_weights = {
+                "call": 1.0,      # 方法调用：最高权重
+                "import": 0.8,    # 导入关系：中等权重
+                "inherit": 0.9,   # 继承关系：较高权重
+                "implement": 0.85, # 实现接口：中等偏高权重
+                "depend": 0.7,    # 依赖关系：较低权重
+            }
+    
+    def get_weight(self, edge_type: str) -> float:
+        """获取指定边类型的权重，默认为1.0"""
+        return self.type_weights.get(edge_type, 1.0)
+    
+    def apply_weight(self, similarity_matrix, edge_types_list):
+        """
+        将边类型权重应用到相似度矩阵
+        
+        Args:
+            similarity_matrix: [N, N] 相似度矩阵
+            edge_types_list: 边类型列表，edge_types_list[i] 表示边 i 的类型
+        
+        Returns:
+            加权后的相似度矩阵
+        """
+        weighted_matrix = similarity_matrix.copy()
+        
+        # 如果有边类型信息，应用权重
+        if edge_types_list and len(edge_types_list) > 0:
+            for edge_type in edge_types_list:
+                # 获取边类型的权重
+                _ = self.get_weight(edge_type)
+                # 这里需要知道边的源和目标节点，通常在调用处处理
+                # 此处仅作为示例
+        
+        return weighted_matrix
+
+
+@dataclass
 class PartitionConfig:
     """划分配置"""
     num_communities: int = 7
@@ -44,7 +88,15 @@ class PartitionConfig:
     size_lower = [int(5) for _ in range(num_communities)]
     size_upper = [int(20) for _ in range(num_communities)]
     pair_threshold = 0.0
-    time_limit_sec = 30
+    time_limit_sec = 20
+    # 迭代/Agent 优化配置（默认开启迭代 + Agent，可在此修改）
+    enable_agent_optimization = True
+    max_iterations = 5
+    edge_type_weights: EdgeTypeWeightConfig = None  # 边类型权重配置
+    
+    def __post_init__(self):
+        if self.edge_type_weights is None:
+            self.edge_type_weights = EdgeTypeWeightConfig()
 
 
 @dataclass

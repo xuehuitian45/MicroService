@@ -8,47 +8,30 @@
     alpha * sum_k sum_{i<j} S_struc[i,j] * y[i,j,k]
   + beta  * sum_k sum_{i<j} S_sem[i,j]   * y[i,j,k]
   - gamma * sum_k sum_{i<j} C_run[i,j]   * (x[i,k] - y[i,j,k])   # 跨服务耦合
-  - delta * max_service_size                                       # 平衡惩罚（新增）
-  - zeta  * sum(inter_service_edges)                              # 隔离惩罚（新增）
-  - iota  * sum(|size_k - target_size|)                           # 内聚度方差（新增）
-  - eta   * sum_{(i,j) in soft_cannot} P_cons[i,j] * v_cl[i,j]    # 可选软惩罚（默认禁用）
 
-约束条件（原始）
+约束条件
 - Sum_k x[i,k] = 1（每个类恰好分配到一个服务）
 - 容量：L_k <= sum_i s_i * x[i,k] <= U_k（如果提供）
 - 线性化：y[i,j,k] <= x[i,k]; y[i,j,k] <= x[j,k]; y[i,j,k] >= x[i,k] + x[j,k] - 1
 - 必须链接（硬约束）：对所有 k，x[i,k] == x[j,k]
 - 不能链接（硬约束）：对所有 k，x[i,k] + x[j,k] <= 1
 
-约束条件（新增）
-- 最小服务大小：sum_i x[i,k] >= min_service_size（如果提供）
-- 最大服务大小：sum_i x[i,k] <= max_service_size（如果提供）
-- 最大跨服务调用：sum(inter_service_edges) <= max_inter_service_calls（如果提供）
-- 内部连通性：每个服务必须有 >= (node_count - 1) 条内部边（如果 enforce_connectivity=True）
-
-输出指标（新增）
-- cohesion_score：服务内结构 + 语义内聚度总和
-- inter_service_calls：跨越服务边界的边数
-- service_sizes：每个服务的节点数列表
-- balance_ratio：max_service_size / min_service_size
-- avg_cohesion_per_service：服务间平均内聚度
-- cohesion_variance：服务间内聚度的方差
-
 注意
 - CP-SAT 是整数求解器；我们将所有实数值分数按整数 SCALE 缩放并四舍五入。
 - 对于大 N，为所有对创建 y 的复杂度为 O(N^2 K)。使用 pair_threshold 来稀疏化对。
-- 新约束（最小/最大大小、连通性）可能显著增加求解器时间。
 """
 from __future__ import annotations
 
 import os
+
 # 禁用 tokenizers 并行处理以避免 fork 相关的死锁
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional, Dict, Callable, Any
 import numpy as np
 import torch
+import asyncio
 from ortools.sat.python import cp_model
 
 
@@ -58,28 +41,21 @@ class PartitionConfig:
     alpha: float = 1.0
     beta: float = 1.0
     gamma: float = 1.0
-    eta: float = 1.0
-    # 新的优化权重
-    delta: float = 0.0  # 平衡惩罚：阻止不均匀的服务大小
-    zeta: float = 0.0   # 服务隔离：最小化跨服务调用
-    theta: float = 0.0  # 依赖深度：最小化调用链深度
-    iota: float = 0.0   # 内聚度方差：最小化服务间的内聚度差异
-    
+
     size_lower: Optional[List[float]] = None
     size_upper: Optional[List[float]] = None
     sizes: Optional[List[float]] = None
+    min_service_size: Optional[float] = None  # 每个服务的最小节点数
+    max_service_size: Optional[float] = None  # 每个服务的最大节点数
     pair_threshold: float = 0.0  # 剪枝权重较小的对
     time_limit_sec: int = 60
     scale: int = 1000  # 将浮点系数缩放为整数
     hard_must_link: bool = True
     hard_cannot_link: bool = True
-    
-    # 新的约束选项
-    min_service_size: Optional[float] = None  # 每个服务的最小节点数
-    max_service_size: Optional[float] = None  # 每个服务的最大节点数
-    max_inter_service_calls: Optional[int] = None  # 限制跨服务依赖
-    enforce_connectivity: bool = False  # 每个服务应该在内部连通
-    max_services_per_node: int = 1  # 通常为 1，但可以放宽
+
+    # 迭代优化参数
+    max_iterations: int = 2  # 最大迭代次数（1 表示无迭代，仅约束求解）
+    enable_agent_optimization: bool = True  # 是否启用 Agent 优化
 
 
 @dataclass
@@ -88,14 +64,9 @@ class PartitionResult:
     objective_value: float
     solver_status: str
     stats: Dict[str, float]
-    
-    # 新的指标
-    cohesion_score: float = 0.0  # 结构 + 语义内聚度
-    inter_service_calls: int = 0  # 跨服务依赖的数量
-    service_sizes: List[int] = None  # 每个服务的节点数
-    balance_ratio: float = 0.0  # max_size / min_size
-    avg_cohesion_per_service: float = 0.0  # 平均内部内聚度
-    cohesion_variance: float = 0.0  # 服务间内聚度的方差
+    iteration: int = 0  # 当前迭代次数
+    total_iterations: int = 1  # 总迭代次数
+    agent_feedback: Optional[Dict] = None  # Agent 优化的反馈信息
 
 
 def cosine_similarity(emb: torch.Tensor) -> np.ndarray:
@@ -112,6 +83,15 @@ def build_structural_similarity(num_nodes: int,
     """
     从有向边构建 S_struc。默认情况下，我们对称化以奖励相互内聚度。
     S_ij 在 [0,1] 范围内，按最大度数归一化。
+    
+    Args:
+        num_nodes: 节点数
+        edge_index: [2, num_edges] 边索引
+        weight: [num_edges] 边权重（可选），如果提供则使用这些权重
+        symmetric: 是否对称化相似度矩阵
+    
+    Returns:
+        [num_nodes, num_nodes] 结构相似度矩阵
     """
     A = np.zeros((num_nodes, num_nodes), dtype=np.float64)
     if edge_index.numel() > 0:
@@ -141,6 +121,14 @@ def build_runtime_coupling(num_nodes: int,
     """
     从有向边构建 C_run；值越高意味着跨越服务的成本越高。
     默认值：每条边 1。
+    
+    Args:
+        num_nodes: 节点数
+        edge_index: [2, num_edges] 边索引
+        weight: [num_edges] 边权重（可选），如果提供则使用这些权重
+    
+    Returns:
+        [num_nodes, num_nodes] 运行时耦合矩阵
     """
     C = np.zeros((num_nodes, num_nodes), dtype=np.float64)
     if edge_index.numel() > 0:
@@ -171,53 +159,6 @@ def _sparsify_pairs(weights: np.ndarray, threshold: float) -> List[Tuple[int, in
             if abs(weight_val) >= threshold:
                 pairs.append((i, j, weight_val))
     return pairs
-
-
-def _compute_inter_service_calls(assignments: List[int], edge_index: torch.Tensor) -> int:
-    """计算跨越服务边界的边数。"""
-    if edge_index.numel() == 0:
-        return 0
-    
-    ei = edge_index.cpu().numpy()
-    count = 0
-    for src, dst in zip(ei[0], ei[1]):
-        if assignments[src] != assignments[dst]:
-            count += 1
-    return count
-
-
-def _compute_cohesion_metrics(assignments: List[int], S_struc: np.ndarray, S_sem: np.ndarray, K: int) -> Tuple[float, float, float]:
-    """
-    计算每个服务的内聚度指标。
-    返回：(total_cohesion, avg_cohesion_per_service, cohesion_variance)
-    """
-    N = len(assignments)
-    service_cohesions = [0.0] * K
-    service_counts = [0] * K
-    
-    for i in range(N):
-        for j in range(i + 1, N):
-            if assignments[i] == assignments[j]:
-                k = assignments[i]
-                cohesion = S_struc[i, j] + S_sem[i, j]
-                service_cohesions[k] += cohesion
-                service_counts[k] += 1
-    
-    # 按每个服务的对数进行归一化
-    for k in range(K):
-        if service_counts[k] > 0:
-            service_cohesions[k] /= service_counts[k]
-    
-    total_cohesion = sum(service_cohesions)
-    non_zero_cohesions = [c for c in service_cohesions if c > 0]
-    
-    if len(non_zero_cohesions) == 0:
-        return 0.0, 0.0, 0.0
-    
-    avg_cohesion = np.mean(non_zero_cohesions)
-    cohesion_variance = np.var(non_zero_cohesions)
-    
-    return total_cohesion, avg_cohesion, cohesion_variance
 
 
 def optimize_partition(S_struc: np.ndarray,
@@ -292,8 +233,8 @@ def optimize_partition(S_struc: np.ndarray,
             for k in range(K):
                 Uk = int(config.size_upper[k])
                 model.Add(sum(int(s[i]) * x[i][k] for i in range(N)) <= Uk)
-    
-    # 最小服务大小约束
+
+    # 最小服务节点数约束
     if config.min_service_size is not None:
         min_size = int(config.min_service_size)
         for k in range(K):
@@ -301,8 +242,8 @@ def optimize_partition(S_struc: np.ndarray,
                 model.Add(sum(int(config.sizes[i]) * x[i][k] for i in range(N)) >= min_size)
             else:
                 model.Add(sum(x[i][k] for i in range(N)) >= min_size)
-    
-    # 最大服务大小约束
+
+    # 最大服务节点数约束
     if config.max_service_size is not None:
         max_size = int(config.max_service_size)
         for k in range(K):
@@ -344,26 +285,6 @@ def optimize_partition(S_struc: np.ndarray,
                         if var is not None:
                             objective_terms.append(coeff_y * var)
 
-    # 服务隔离：-zeta * (inter-service calls)
-    # 计算跨越服务边界的边
-    if config.zeta > 0:
-        inter_service_edges = []
-        if edge_index.numel() > 0:
-            ei = edge_index.cpu().numpy()
-            for src, dst in zip(ei[0], ei[1]):
-                # 创建二进制变量：如果 src 和 dst 在不同服务中则为 1
-                edge_cross = model.NewBoolVar(f"edge_cross_{src}_{dst}")
-                # edge_cross = 1 当且仅当存在某个 k 使得 x[src][k] != x[dst][k]
-                # 这很复杂；简化：对所有 k，edge_cross >= x[src][k] - x[dst][k]
-                for k in range(K):
-                    model.Add(edge_cross >= x[src][k] - x[dst][k])
-                    model.Add(edge_cross >= x[dst][k] - x[src][k])
-                inter_service_edges.append(edge_cross)
-        
-        if inter_service_edges:
-            isolation_coeff = int(round(SCALE * (-config.zeta)))
-            objective_terms.append(isolation_coeff * sum(inter_service_edges))
-
     model.Maximize(sum(objective_terms))
 
     solver = cp_model.CpSolver()
@@ -384,21 +305,6 @@ def optimize_partition(S_struc: np.ndarray,
     # 目标值（重新缩放）
     obj_value = solver.ObjectiveValue() / SCALE
 
-    # 计算详细指标
-    service_sizes = [0] * K
-    for i, assignment in enumerate(assignments):
-        if assignment >= 0:
-            if config.sizes is not None:
-                service_sizes[assignment] += int(config.sizes[i])
-            else:
-                service_sizes[assignment] += 1
-    
-    inter_service_calls = _compute_inter_service_calls(assignments, edge_index)
-    total_cohesion, avg_cohesion, cohesion_variance = _compute_cohesion_metrics(assignments, S_struc, S_sem, K)
-    
-    non_empty_sizes = [s for s in service_sizes if s > 0]
-    balance_ratio = max(non_empty_sizes) / min(non_empty_sizes) if non_empty_sizes and min(non_empty_sizes) > 0 else float('inf')
-
     return PartitionResult(
         assignments=assignments,
         objective_value=obj_value,
@@ -408,93 +314,381 @@ def optimize_partition(S_struc: np.ndarray,
             "N": N,
             "K": K,
         },
-        cohesion_score=total_cohesion,
-        inter_service_calls=inter_service_calls,
-        service_sizes=service_sizes,
-        balance_ratio=balance_ratio,
-        avg_cohesion_per_service=avg_cohesion,
-        cohesion_variance=cohesion_variance,
+        iteration=0,
+        total_iterations=1,
+        agent_feedback=None,
     )
 
 
-def simple_kmeans_fallback(embeddings: torch.Tensor, K: int, seed: int = 42) -> List[int]:
-    """通过 k-means（来自 numpy）进行回退聚类，返回长度为 N 的标签。"""
-    from sklearn.cluster import KMeans
-    X = torch.nan_to_num(embeddings, nan=0.0, posinf=1e6, neginf=-1e6)
-    X = torch.nn.functional.normalize(X, p=2, dim=1, eps=1e-8).cpu().numpy()
-    km = KMeans(n_clusters=K, n_init=10, random_state=seed)
-    labels = km.fit_predict(X)
-    return labels.tolist()
+def _convert_assignments_to_partitions(assignments: List[int], num_nodes: int) -> Dict[int, List[int]]:
+    """
+    将分配结果转换为分区字典格式。
+    
+    Args:
+        assignments: [num_nodes] 每个节点的服务分配
+        num_nodes: 节点总数
+    
+    Returns:
+        {service_id: [node_ids]} 分区字典
+    """
+    partitions = {}
+    for node_id, service_id in enumerate(assignments):
+        if service_id not in partitions:
+            partitions[service_id] = []
+        partitions[service_id].append(node_id)
+    return partitions
+
+
+def _merge_constraints(
+        must_link: Optional[List[Tuple[int, int]]],
+        cannot_link: Optional[List[Tuple[int, int]]],
+        agent_must_link: Optional[List[Tuple[int, int]]],
+        agent_cannot_link: Optional[List[Tuple[int, int]]],
+) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
+    """
+    合并来自 Agent 的约束和原有约束。
+    
+    Args:
+        must_link: 原有的必须链接约束
+        cannot_link: 原有的不能链接约束
+        agent_must_link: Agent 建议的必须链接约束
+        agent_cannot_link: Agent 建议的不能链接约束
+    
+    Returns:
+        (merged_must_link, merged_cannot_link)
+    """
+    merged_must = list(must_link or [])
+    merged_cannot = list(cannot_link or [])
+
+    # 添加 Agent 的建议，避免重复
+    if agent_must_link:
+        for constraint in agent_must_link:
+            normalized = tuple(sorted(constraint))
+            if normalized not in {tuple(sorted(c)) for c in merged_must}:
+                merged_must.append(constraint)
+
+    if agent_cannot_link:
+        for constraint in agent_cannot_link:
+            normalized = tuple(sorted(constraint))
+            if normalized not in {tuple(sorted(c)) for c in merged_cannot}:
+                merged_cannot.append(constraint)
+
+    return merged_must, merged_cannot
+
+
+async def iterative_optimize_partition(
+        S_struc: np.ndarray,
+        S_sem: np.ndarray,
+        C_run: np.ndarray,
+        K: int,
+        must_link: Optional[List[Tuple[int, int]]] = None,
+        cannot_link: Optional[List[Tuple[int, int]]] = None,
+        config: Optional[PartitionConfig] = None,
+        edge_index: Optional[torch.Tensor] = None,
+        agent_optimize_fn: Optional[Callable[[PartitionResult, str], Any]] = None,
+        agent_analyze_fn: Optional[Callable[[PartitionResult], Any]] = None,
+        node_names: Optional[List[str]] = None,
+) -> PartitionResult:
+    """
+    迭代优化微服务分区：约束求解 → Agent 优化 → 约束求解 → ...
+    
+    Args:
+        S_struc: 结构相似度矩阵
+        S_sem: 语义相似度矩阵
+        C_run: 运行时耦合矩阵
+        K: 服务数量
+        must_link: 必须链接约束
+        cannot_link: 不能链接约束
+        config: 分区配置
+        edge_index: 边索引
+        agent_optimize_fn: Agent 优化函数（异步），签名为 async fn(partitions: Dict) -> Dict
+        node_names: 节点名称列表（用于 Agent 理解）
+    
+    Returns:
+        最终的分区结果
+    """
+    if config is None:
+        config = PartitionConfig(K=K)
+
+    if edge_index is None:
+        edge_index = torch.tensor([], dtype=torch.long).reshape(2, 0)
+
+    N = S_struc.shape[0]
+    current_must_link = list(must_link or [])
+    current_cannot_link = list(cannot_link or [])
+
+    max_iterations = max(1, config.max_iterations)
+    enable_agent = config.enable_agent_optimization and agent_optimize_fn is not None
+
+    print(f"开始迭代优化：最大迭代次数={max_iterations}，启用Agent优化={enable_agent}")
+
+    for iteration in range(max_iterations):
+        print(f"\n{'=' * 60}")
+        print(f"迭代 {iteration + 1}/{max_iterations}")
+        print(f"{'=' * 60}")
+
+        # 第一步：约束求解
+        print(f"[迭代 {iteration + 1}] 执行约束求解...")
+        result = optimize_partition(
+            S_struc=S_struc,
+            S_sem=S_sem,
+            C_run=C_run,
+            K=K,
+            must_link=current_must_link,
+            cannot_link=current_cannot_link,
+            config=config,
+            edge_index=edge_index,
+        )
+
+        result.iteration = iteration
+        result.total_iterations = max_iterations
+
+        print(f"[迭代 {iteration + 1}] 约束求解完成")
+        print(f"  - 目标值: {result.objective_value:.4f}")
+        print(f"  - 求解器状态: {result.solver_status}")
+
+        # 如果是最后一次迭代或不启用 Agent 优化，直接返回
+        if iteration == max_iterations - 1 or not enable_agent:
+            print(f"\n优化完成（迭代 {iteration + 1}/{max_iterations}）")
+            return result
+
+        # 第二步：Agent 优化
+        print(f"[迭代 {iteration + 1}] 调用 Agent 进行优化...")
+        partitions = _convert_assignments_to_partitions(result.assignments, N)
+
+        # 如果提供了节点名称，构建更友好的分区表示
+        if node_names:
+            partitions_with_names = {
+                k: [node_names[i] for i in v]
+                for k, v in partitions.items()
+            }
+        else:
+            partitions_with_names = partitions
+
+        try:
+            analyze_result = await agent_analyze_fn(partitions_with_names)
+            if analyze_result is None:
+                print(f"[迭代 {iteration + 1}] Agent 分析返回 None，结束迭代")
+                return result
+            if hasattr(analyze_result, 'needs_optimization'):
+                if not analyze_result.needs_optimization:
+                    print(f"[迭代 {iteration + 1}] Agent 分析不需要优化，结束迭代")
+                    return result
+            suggestions = getattr(analyze_result, 'suggestions', '') or ''
+            optimize_result = await agent_optimize_fn(partitions_with_names, suggestions)
+
+            if optimize_result is None:
+                print(f"[迭代 {iteration + 1}] Agent 返回 None，结束迭代")
+                return result
+
+            # 提取 Agent 的建议
+            agent_must_link = getattr(optimize_result, 'must_links', []) or []
+            agent_cannot_link = getattr(optimize_result, 'cannot_link', []) or []
+
+            print(f"[迭代 {iteration + 1}] Agent 建议:")
+            print(f"  - 必须链接: {len(agent_must_link)} 个约束")
+            print(f"  - 必须链接: {agent_must_link}")
+            print(f"  - 不能链接: {len(agent_cannot_link)} 个约束")
+            print(f"  - 不能链接: {agent_cannot_link}")
+
+            agent_must_link_list = agent_must_link
+            agent_must_link = []
+            for link_list in agent_must_link_list:
+                for i in range(len(link_list)):
+                    for j in range(i + 1, len(link_list)):
+                        if link_list[i] != link_list[j]:
+                            agent_must_link.append((link_list[i], link_list[j]))
+
+            # 如果节点名称被使用，需要转换回节点索引
+            if node_names:
+                name_to_idx = {name: idx for idx, name in enumerate(node_names)}
+                agent_must_link = [
+                    (name_to_idx[m[0]], name_to_idx[m[1]])
+                    for m in agent_must_link
+                    if m[0] in name_to_idx and m[1] in name_to_idx
+                ]
+                agent_cannot_link = [
+                    (name_to_idx[c[0]], name_to_idx[c[1]])
+                    for c in agent_cannot_link
+                    if c[0] in name_to_idx and c[1] in name_to_idx
+                ]
+
+            # 合并约束
+            current_must_link, current_cannot_link = _merge_constraints(
+                current_must_link,
+                current_cannot_link,
+                agent_must_link,
+                agent_cannot_link,
+            )
+
+            # 保存 Agent 反馈
+            result.agent_feedback = {
+                "iteration": iteration,
+                "must_links": agent_must_link,
+                "cannot_link": agent_cannot_link,
+            }
+
+            print(f"[迭代 {iteration + 1}] 约束已更新，准备下一轮求解")
+
+        except Exception as e:
+            print(f"[迭代 {iteration + 1}] Agent 优化失败: {e}")
+            print(f"[迭代 {iteration + 1}] 返回当前最佳结果")
+            return result
+
+    return result
+
+
+async def partition_from_embeddings_iterative(
+        embeddings: torch.Tensor,
+        edge_index: torch.Tensor,
+        K: int,
+        alpha: float = 1.0,
+        beta: float = 1.0,
+        gamma: float = 1.0,
+        must_link: Optional[List[Tuple[int, int]]] = None,
+        cannot_link: Optional[List[Tuple[int, int]]] = None,
+        sizes: Optional[List[float]] = None,
+        size_lower: Optional[List[float]] = None,
+        size_upper: Optional[List[float]] = None,
+        min_service_size: Optional[float] = None,
+        max_service_size: Optional[float] = None,
+        pair_threshold: float = 0.0,
+        time_limit_sec: int = 30,
+        symmetric_struc: bool = True,
+        edge_weights: Optional[torch.Tensor] = None,
+        max_iterations: int = 1,
+        enable_agent_optimization: bool = False,
+        agent_optimize_fn: Optional[Callable[[PartitionResult, str], Any]] = None,
+        agent_analyze_fn: Optional[Callable[[PartitionResult], Any]] = None,
+        node_names: Optional[List[str]] = None,
+) -> PartitionResult:
+    """
+    便利包装器：从嵌入 + 边构建矩阵然后进行迭代优化求解。
+
+    参数：
+    -----------
+    embeddings: [num_nodes, embedding_dim] 节点嵌入
+    edge_index: [2, num_edges] 边索引
+    K: 服务数量
+    alpha：结构相似度内聚度的权重
+    beta：语义相似度内聚度的权重
+    gamma：运行时耦合惩罚的权重
+    must_link：必须链接的节点对列表
+    cannot_link：不能链接的节点对列表
+    sizes：节点大小列表
+    size_lower：每个服务的最小大小
+    size_upper：每个服务的最大大小
+    min_service_size：每个服务的最小节点数
+    max_service_size：每个服务的最大节点数
+    pair_threshold：对权重的剪枝阈值
+    time_limit_sec：求解器时间限制
+    symmetric_struc：是否对称化结构相似度
+    edge_weights: [num_edges] 边权重（基于类型），如果提供则使用这些权重
+    max_iterations: 最大迭代次数（1 表示仅约束求解）
+    enable_agent_optimization: 是否启用 Agent 优化
+    agent_optimize_fn: Agent 优化函数（异步）
+    node_names: 节点名称列表
+    """
+    N = embeddings.size(0)
+    S_sem = cosine_similarity(embeddings)  # [-1,1]
+    S_sem = (S_sem + 1.0) / 2.0  # [0,1]
+    S_struc = build_structural_similarity(N, edge_index, weight=edge_weights, symmetric=symmetric_struc)
+    C_run = build_runtime_coupling(N, edge_index, weight=edge_weights)
+
+    # 构建配置
+    cfg = PartitionConfig(
+        K=K,
+        alpha=alpha,
+        beta=beta,
+        gamma=gamma,
+        sizes=sizes,
+        size_lower=size_lower,
+        size_upper=size_upper,
+        min_service_size=min_service_size,
+        max_service_size=max_service_size,
+        pair_threshold=pair_threshold,
+        time_limit_sec=time_limit_sec,
+        scale=1000,
+        max_iterations=max_iterations,
+        enable_agent_optimization=enable_agent_optimization,
+    )
+
+    return await iterative_optimize_partition(
+        S_struc=S_struc,
+        S_sem=S_sem,
+        C_run=C_run,
+        K=K,
+        must_link=must_link,
+        cannot_link=cannot_link,
+        config=cfg,
+        edge_index=edge_index,
+        agent_optimize_fn=agent_optimize_fn,
+        agent_analyze_fn = agent_analyze_fn,
+        node_names=node_names,
+    )
 
 
 def partition_from_embeddings(
-    embeddings: torch.Tensor,
-    edge_index: torch.Tensor,
-    K: int,
-    alpha: float = 1.0,
-    beta: float = 1.0,
-    gamma: float = 1.0,
-    delta: float = 0.0,
-    zeta: float = 1.0,
-    theta: float = 0.0,
-    iota: float = 0.0,
-    must_link: Optional[List[Tuple[int, int]]] = None,
-    cannot_link: Optional[List[Tuple[int, int]]] = None,
-    sizes: Optional[List[float]] = None,
-    size_lower: Optional[List[float]] = None,
-    size_upper: Optional[List[float]] = None,
-    min_service_size: Optional[float] = None,
-    max_service_size: Optional[float] = None,
-    max_inter_service_calls: Optional[int] = None,
-    pair_threshold: float = 0.0,
-    time_limit_sec: int = 30,
-    symmetric_struc: bool = True,
-    enforce_connectivity: bool = False,
+        embeddings: torch.Tensor,
+        edge_index: torch.Tensor,
+        K: int,
+        alpha: float = 1.0,
+        beta: float = 1.0,
+        gamma: float = 1.0,
+        must_link: Optional[List[Tuple[int, int]]] = None,
+        cannot_link: Optional[List[Tuple[int, int]]] = None,
+        sizes: Optional[List[float]] = None,
+        size_lower: Optional[List[float]] = None,
+        size_upper: Optional[List[float]] = None,
+        min_service_size: Optional[float] = None,
+        max_service_size: Optional[float] = None,
+        pair_threshold: float = 0.0,
+        time_limit_sec: int = 30,
+        symmetric_struc: bool = True,
+        edge_weights: Optional[torch.Tensor] = None,
 ) -> PartitionResult:
     """
     便利包装器：从嵌入 + 边构建矩阵然后求解。
     
     参数：
     -----------
+    embeddings: [num_nodes, embedding_dim] 节点嵌入
+    edge_index: [2, num_edges] 边索引
+    K: 服务数量
     alpha：结构相似度内聚度的权重
     beta：语义相似度内聚度的权重
     gamma：运行时耦合惩罚的权重
-    delta：服务平衡惩罚的权重（阻止不均匀大小）
-    zeta：服务隔离惩罚的权重（最小化跨服务调用）
-    theta：依赖深度惩罚的权重（尚未实现）
-    iota：内聚度方差惩罚的权重（最小化服务间的方差）
+    must_link：必须链接的节点对列表
+    cannot_link：不能链接的节点对列表
+    sizes：节点大小列表
+    size_lower：每个服务的最小大小
+    size_upper：每个服务的最大大小
     min_service_size：每个服务的最小节点数
     max_service_size：每个服务的最大节点数
-    max_inter_service_calls：允许的最大跨服务依赖数
-    enforce_connectivity：要求每个服务在内部连通
+    pair_threshold：对权重的剪枝阈值
+    time_limit_sec：求解器时间限制
+    symmetric_struc：是否对称化结构相似度
+    edge_weights: [num_edges] 边权重（基于类型），如果提供则使用这些权重
     """
     N = embeddings.size(0)
     S_sem = cosine_similarity(embeddings)  # [-1,1]
-    S_sem = (S_sem + 1.0) / 2.0           # [0,1]
-    S_struc = build_structural_similarity(N, edge_index, symmetric=symmetric_struc)
-    C_run = build_runtime_coupling(N, edge_index)
-    
-    # 构建配置并求解分区
+    S_sem = (S_sem + 1.0) / 2.0  # [0,1]
+    S_struc = build_structural_similarity(N, edge_index, weight=edge_weights, symmetric=symmetric_struc)
+    C_run = build_runtime_coupling(N, edge_index, weight=edge_weights)
 
+    # 构建配置并求解分区
     cfg = PartitionConfig(
         K=K,
         alpha=alpha,
         beta=beta,
         gamma=gamma,
-        delta=delta,
-        zeta=zeta,
-        theta=theta,
-        iota=iota,
         sizes=sizes,
         size_lower=size_lower,
         size_upper=size_upper,
         min_service_size=min_service_size,
         max_service_size=max_service_size,
-        max_inter_service_calls=max_inter_service_calls,
         pair_threshold=pair_threshold,
         time_limit_sec=time_limit_sec,
         scale=1000,
-        enforce_connectivity=enforce_connectivity,
     )
     return optimize_partition(S_struc, S_sem, C_run, K, must_link, cannot_link, cfg, edge_index)
-
