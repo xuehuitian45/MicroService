@@ -4,9 +4,9 @@ from dataclasses import dataclass
 @dataclass
 class DataConfig:
     """数据配置"""
-    dataset_path: str = "/Users/xht/Downloads/MicroService/data/data.json"
-    result_path: str = "/Users/xht/Downloads/MicroService/result/result.json"
-    evaluate_result_path: str = "/Users/xht/Downloads/MicroService/result/report.json"
+    dataset_path: str = "C:/Users/lenovo/Desktop/MicroService/data/data.json"
+    result_path: str = "C:/Users/lenovo/Desktop/MicroService/result/result.json"
+    evaluate_result_path: str = "C:/Users/lenovo/Desktop/MicroService/result/report.json"
 
 @dataclass
 class EvaluateConfig:

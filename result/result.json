@@ -1,9 +1,89 @@
 {
-    "0": [],
-    "1": [],
-    "2": [],
-    "3": [],
-    "4": [],
-    "5": [],
-    "6": []
+    "Service-0": [
+        "JsonMessage",
+        "JsonDecoder",
+        "ActionMessage",
+        "PingJSONP",
+        "ActionDecoder",
+        "JsonEncoder"
+    ],
+    "Service-2": [
+        "PingServletCDIBeanManagerViaCDICurrent",
+        "PingUpgradeServlet",
+        "PingInterceptor",
+        "PingEJBLocalDecorator",
+        "RunStatsDataBean",
+        "KeyBlock",
+        "FinancialUtils",
+        "PingCDIJSFBean",
+        "DTStreamer3MDB",
+        "PingEJBLocal",
+        "ExternalContextProducer",
+        "TimerStat",
+        "KeySequenceDirect",
+        "ExplicitGC",
+        "MDBStats",
+        "PingServletCDIBeanManagerViaJNDI",
+        "PingCDIBean",
+        "PingServletCDI",
+        "JSFLoginFilter",
+        "Log"
+    ],
+    "Service-6": [
+        "PingServlet2Include",
+        "PingServlet2Servlet",
+        "PingServlet2PDF",
+        "PingServlet2SessionLocal",
+        "PingServlet",
+        "PingServlet2Jsp",
+        "PingServletWriter",
+        "PingServlet2IncludeRcv",
+        "PingBean",
+        "PingServlet2JNDI",
+        "PingServlet2DB",
+        "PingServlet2ServletRcv"
+    ],
+    "Service-4": [
+        "QuoteData",
+        "TradeDirect",
+        "TradeConfig",
+        "TradeAppServlet",
+        "TradeSLSBBean",
+        "AccountProfileDataBean",
+        "QuoteDataBean",
+        "TradeConfigServlet",
+        "TradeBuildDB",
+        "OrdersAlertFilter",
+        "TradeServletAction",
+        "TradeActionProducer",
+        "TradeWebContextListener",
+        "TradeScenarioServlet",
+        "OrderDataBean",
+        "AccountDataBean",
+        "RecentStockChangeList",
+        "HoldingDataBean",
+        "QuoteJSF",
+        "TradeAction"
+    ],
+    "Service-5": [
+        "MarketSummarySingleton",
+        "PingJDBCWrite",
+        "PingJDBCRead2JSP",
+        "PingJDBCRead",
+        "MarketSummaryDataBean"
+    ],
+    "Service-1": [
+        "PingSession2",
+        "PingManagedExecutor",
+        "PingSession1",
+        "PingSession3",
+        "PingManagedThread"
+    ],
+    "Service-3": [
+        "PingWebSocketTextSync",
+        "MarketSummaryWebSocket",
+        "PingWebSocketTextAsync",
+        "PingWebSocketBinary",
+        "PingWebSocketJson"
+    ]
 }

@@ -21,6 +21,8 @@ optimize_agent = ReActAgent(
 must-link 是节点名称的列表的列表，表示这些节点必须放在同一个服务中；
 cannot-link 是节点的名称的二元组的列表，确保清晰明了。
 不要只被 Ping 等测试类函数影响，要综合考虑业务功能和职责。
+要让不同业务的数据处理逻辑尽可能分开，减少服务之间的耦合度。
+要让不同业务尽可能被放置在不同的服务中，提升服务的内聚度，降低耦合度
 """,
     model=DashScopeChatModel(
         model_name="qwen3-max",
@@ -33,12 +35,14 @@ analyze_agent = ReActAgent(
 name="Analyzer",
     sys_prompt="""你是一个有用的软件工程师，我将提供给你一个微服务划分结果，请分析该划分结果，确保满足以下要求：
 1. 该划分结果是否合理，是否还需要优化？
-2. 如果需要优化的话请给出明确的优化建议
+2. 如果需要优化的话请给出明确的优化建议。
 
 注意：
 1. 服务之间的耦合度应该尽可能低，服务内部的内聚度应该尽可能高。
-2. 服务在语义上应该是合理的，相关功能应该被划分到同一个服务中。
-3. 不要只被 Ping 等测试类函数影响，要综合考虑业务功能和职责。
+2. 要让不同业务的数据处理逻辑尽可能分开，减少服务之间的耦合度。
+3. 要让不同业务尽可能被放置在不同的服务中，提升服务的内聚度，降低耦合度
+4. 服务在语义上应该是合理的，相关功能应该被划分到同一个服务中。
+5. 不要只被 Ping 等测试类函数影响，要综合考虑业务功能和职责。
 """,
     model=DashScopeChatModel(
         model_name="qwen3-max",
@@ -130,15 +134,25 @@ async def agent_optimize(partitions: Dict, advice: str) -> Optional[OptimizeResu
     """
     try:
         print("开始调用 LLM 优化微服务划分结果，等待返回...")
-        res = await optimize_agent(
-            Msg(
-                "user",
-                f"微服务划分结果：{json.dumps(partitions, ensure_ascii=False)}。专家意见：{advice}。"
-                "请分析这个划分，并给出你认为的must-link和cannot-link的结果。",
-                "user"
-            ),
-            structured_model=OptimizeResult,
-        )
+        if partitions is None or len(partitions) == 0:
+            res = await optimize_agent(
+                Msg(
+                    "user",
+                    advice,
+                    "user"
+                ),
+                structured_model=OptimizeResult
+            )
+        else:
+            res = await optimize_agent(
+                Msg(
+                    "user",
+                    f"微服务划分结果：{json.dumps(partitions, ensure_ascii=False)}。专家意见：{advice}。"
+                    "请分析这个划分，并给出你认为的must-link和cannot-link的结果。",
+                    "user"
+                ),
+                structured_model=OptimizeResult,
+            )
         print("模型已完全返回，开始处理结果...")
 
         if not hasattr(res, "metadata") or res.metadata is None:

@@ -1,10 +1,12 @@
 """
 将图节点进行编码，分别采用结构和语义信息，并使用交叉注意力进行融合，采用结构向量作为查询向量，更加突出结构信息重要性
 """
+import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 from torch_geometric.nn import MessagePassing
 import numpy as np
 from typing import List, Tuple, Optional
@@ -97,28 +99,30 @@ class EdgeTypeEmbedding(nn.Module):
         return self.edge_type_embedding(edge_types)
 
 
-class GraphormerLayer(MessagePassing):
+class GraphormerLayer(nn.Module):
     """
-    标准 Graphormer 层（全局注意力 + 注意力偏置 + 中心性编码，Pre-LN 结构）
-
-    关键点：
-    - 使用最短路径距离（SPD）的可学习嵌入作为注意力偏置
-    - 使用边类型（直接相邻）嵌入作为注意力偏置
-    - 使用入度/出度中心性嵌入，叠加到节点表示
-    - 预归一化 Transformer 结构（LN -> MHA -> 残差 -> LN -> FFN -> 残差）
+    修复版 Graphormer 层（增强结构编码能力）
+    关键改进：
+    - 增强注意力偏置的强度和可学习性
+    - 修正边权重偏置逻辑
+    - 添加自环偏置和注意力温度系数
+    - 优化 SPD 编码映射方式
+    - 添加结构归一化
     """
 
     def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        num_edge_types: int,
-        num_heads: int = 8,
-        dropout: float = 0.1,
-        max_dist: int = 10,
-        max_degree: int = 512,
+            self,
+            in_channels: int,
+            out_channels: int,
+            num_edge_types: int,
+            num_heads: int = 8,
+            dropout: float = 0.1,
+            max_dist: int = 10,
+            max_degree: int = 512,
+            bias_scale: float = 10.0,  # 注意力偏置缩放系数（增强结构权重）
+            attn_temp: float = 0.5,  # 注意力温度系数（控制分布尖锐度）
     ):
-        super().__init__(aggr='add')
+        super().__init__()
         assert in_channels == out_channels, "GraphormerLayer 需 in_channels == out_channels"
         assert out_channels % num_heads == 0, "out_channels 必须能被 num_heads 整除"
 
@@ -127,6 +131,8 @@ class GraphormerLayer(MessagePassing):
         self.head_dim = out_channels // num_heads
         self.max_dist = max_dist
         self.max_degree = max_degree
+        self.bias_scale = bias_scale  # 新增：偏置强度缩放
+        self.attn_temp = attn_temp  # 新增：注意力温度
 
         # QKV 投影
         self.q_proj = nn.Linear(out_channels, out_channels)
@@ -134,15 +140,15 @@ class GraphormerLayer(MessagePassing):
         self.v_proj = nn.Linear(out_channels, out_channels)
         self.out_proj = nn.Linear(out_channels, out_channels)
 
-        # 注意力偏置：SPD 与 边类型（直接边）
-        # SPD 偏置：每个距离一个可学习的每头偏置（num_heads 维向量）
-        self.spd_bias_table = nn.Embedding(self.max_dist + 1, num_heads)
-        # 边类型偏置：每种边类型一个每头偏置
+        # 注意力偏置（增强版）
+        self.spd_bias_table = nn.Embedding(self.max_dist + 2, num_heads)  # +2 预留自环/超长距离
         self.edge_type_bias = nn.Embedding(num_edge_types, num_heads)
+        self.self_loop_bias = nn.Parameter(torch.zeros(num_heads))  # 新增：自环偏置
 
-        # 中心性编码（加到节点表示上）
+        # 中心性编码（添加可学习缩放）
         self.in_degree_emb = nn.Embedding(self.max_degree + 1, out_channels)
         self.out_degree_emb = nn.Embedding(self.max_degree + 1, out_channels)
+        self.degree_scale = nn.Parameter(torch.ones(1))  # 新增：中心性编码缩放
 
         # 预归一化 + FFN
         self.ln1 = nn.LayerNorm(out_channels)
@@ -171,9 +177,11 @@ class GraphormerLayer(MessagePassing):
             elif isinstance(m, nn.LayerNorm):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
+        # 初始化自环偏置为正值（增强自注意力）
+        nn.init.constant_(self.self_loop_bias, 1.0)
 
     @staticmethod
-    def _compute_degrees(num_nodes: int, edge_index: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _compute_degrees(num_nodes: int, edge_index: torch.Tensor) -> Tuple[Tensor, Tensor]:
         device = edge_index.device if edge_index.numel() > 0 else torch.device('cpu')
         deg_out = torch.zeros(num_nodes, dtype=torch.long, device=device)
         deg_in = torch.zeros(num_nodes, dtype=torch.long, device=device)
@@ -184,150 +192,148 @@ class GraphormerLayer(MessagePassing):
         return deg_in, deg_out
 
     def _build_attention_bias(
-        self,
-        num_nodes: int,
-        edge_index: torch.Tensor,
-        edge_types: torch.Tensor,
-        pos_encoding: torch.Tensor,
-        device: torch.device,
-        edge_weights: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+            self,
+            num_nodes: int,
+            edge_index: torch.Tensor,
+            edge_types: torch.Tensor,
+            pos_encoding: Tensor,
+            device: torch.device,
+            edge_weights: Optional[Tensor] = None,
+    ) -> Tensor:
         """
-        返回形状 [num_heads, N, N] 的注意力偏置矩阵。
-        - SPD 偏置：从 pos_encoding 的前 N 列提取（N x N 的最短路径编码，已归一化到 [0,1]），
-          映射到 0..max_dist 的整数桶后查表；
-        - 边类型偏置：对直接边 (i->j) 为每个 head 加上对应的偏置；
-        - 边权重偏置：对直接边 (i->j) 应用权重缩放，高权重边增加注意力。
-        
-        Args:
-            num_nodes: 节点数
-            edge_index: [2, E] 边索引
-            edge_types: [E] 边类型索引
-            pos_encoding: [N, N+k] 位置编码
-            device: 计算设备
-            edge_weights: [E] 边权重（可选），如果提供则应用到注意力偏置
+        修复版注意力偏置构建：
+        1. 增强偏置强度
+        2. 修正边权重逻辑
+        3. 添加自环偏置
+        4. 优化 SPD 映射
         """
+        # 初始化偏置矩阵 [H, N, N]
         attn_bias = torch.zeros(self.num_heads, num_nodes, num_nodes, device=device)
 
-        # SPD 偏置
-        if pos_encoding is not None and pos_encoding.size(1) >= num_nodes:
-            spd_norm = pos_encoding[:, :num_nodes]  # [N, N], 行 i 表示 i 到所有 j 的距离（归一化）
-            # 反归一化回 0..max_dist 的整数桶
-            spd_bucket = (spd_norm * self.max_dist + 0.5).clamp(0, self.max_dist).long()  # [N, N]
-            # 查表得到每个 pair 的每头偏置 -> [N, N, H]
-            spd_bias = self.spd_bias_table(spd_bucket)  # [N, N, H]
-            attn_bias = attn_bias + spd_bias.permute(2, 0, 1)  # -> [H, N, N]
+        # 1. 自环偏置（节点对自身的注意力增强）
+        self_loop_mask = torch.eye(num_nodes, dtype=torch.bool, device=device)  # [N,N]
+        for h in range(self.num_heads):
+            attn_bias[h][self_loop_mask] += self.self_loop_bias[h]
 
-        # 直接边类型偏置 + 边权重偏置
+        # 2. SPD 偏置（优化映射方式）
+        if pos_encoding is not None and pos_encoding.size(1) >= num_nodes:
+            spd_norm = pos_encoding[:, :num_nodes]  # [N, N]
+            # 优化：分段映射 SPD，保留更多细节
+            spd_bucket = torch.where(
+                spd_norm == 0,  # 自环
+                torch.tensor(0, device=device),
+                torch.where(
+                    spd_norm > 1.0,  # 超长距离
+                    torch.tensor(self.max_dist + 1, device=device),
+                    (spd_norm * self.max_dist).clamp(1, self.max_dist).long()
+                )
+            )
+            spd_bias = self.spd_bias_table(spd_bucket)  # [N, N, H]
+            # 缩放偏置强度
+            attn_bias = attn_bias + spd_bias.permute(2, 0, 1) * self.bias_scale
+
+        # 3. 边类型 + 边权重偏置（修正逻辑）
         if edge_index.numel() > 0 and edge_types.numel() > 0:
             src, dst = edge_index[0], edge_index[1]
-            # 每条边一个每头偏置：[E, H]
             e_bias = self.edge_type_bias(edge_types)  # [E, H]
-            
-            # 如果提供了边权重，应用权重缩放
-            # 权重范围通常是 [0, 1]，我们将其缩放到 [-1, 1] 范围以增加注意力
+
+            # 修复：边权重应增强偏置（而非缩放），权重越高偏置越大
             if edge_weights is not None:
-                # 将权重从 [0, 1] 缩放到 [-1, 1]，使得权重越高，偏置越大
-                weight_scale = (edge_weights * 2.0 - 1.0).unsqueeze(1)  # [E, 1]
-                e_bias = e_bias * weight_scale  # [E, H]
-            
-            # 累加到 [H, N, N]
+                # 将权重从 [0,1] 映射到 [0, 2*bias_scale]，增强高权重边的注意力
+                weight_scale = edge_weights.unsqueeze(1) * 2 * self.bias_scale  # [E,1]
+                e_bias = e_bias + weight_scale  # 加法增强而非乘法缩放
+
+            # 累加到偏置矩阵（带缩放）
             for h in range(self.num_heads):
-                attn_bias[h].index_put_((src, dst), e_bias[:, h], accumulate=True)
+                attn_bias[h].index_put_((src, dst), e_bias[:, h] * self.bias_scale, accumulate=True)
 
         return attn_bias
 
     def forward(
-        self,
-        x: torch.Tensor,
-        edge_index: torch.Tensor,
-        edge_types: torch.Tensor,
-        pos_encoding: torch.Tensor,
-        edge_weights: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
-        """
-        Args:
-            x: [N, D] 节点特征
-            edge_index: [2, E] 有向边索引
-            edge_types: [E] 边类型索引
-            pos_encoding: [N, N + k]，前 N 列为 i->j 的最短路径距离编码（归一化到 [0,1]）
-            edge_weights: [E] 边权重（可选），基于边类型的权重
-
-        Returns:
-            [N, D] 更新后的节点表示
-        """
+            self,
+            x: Tensor,
+            edge_index: Tensor,
+            edge_types: Tensor,
+            pos_encoding: Tensor,
+            edge_weights: Optional[Tensor] = None,
+    ) -> Tensor:
         N, D = x.size()
         device = x.device
 
-        # 1) 中心性编码（入度/出度）加到表示上
+        # 1) 中心性编码（添加可学习缩放）
         deg_in, deg_out = self._compute_degrees(N, edge_index)
         deg_in = deg_in.clamp(max=self.max_degree)
         deg_out = deg_out.clamp(max=self.max_degree)
-        x = x + self.in_degree_emb(deg_in) + self.out_degree_emb(deg_out)
+        degree_emb = (self.in_degree_emb(deg_in) + self.out_degree_emb(deg_out)) * self.degree_scale
+        x = x + degree_emb
 
         # 2) Pre-LN + 多头注意力
         x_norm = self.ln1(x)
 
+        # QKV 投影 + 重塑
         q = self.q_proj(x_norm).view(N, self.num_heads, self.head_dim).transpose(0, 1)  # [H, N, Hd]
         k = self.k_proj(x_norm).view(N, self.num_heads, self.head_dim).transpose(0, 1)  # [H, N, Hd]
         v = self.v_proj(x_norm).view(N, self.num_heads, self.head_dim).transpose(0, 1)  # [H, N, Hd]
 
-        # 构建注意力偏置（可作为 additive mask 传入 SDPA）
-        # 包括 SPD 偏置、边类型偏置和边权重偏置
-        attn_bias = self._build_attention_bias(N, edge_index, edge_types, pos_encoding, device, edge_weights)  # [H, N, N]
+        # 构建注意力偏置
+        attn_bias = self._build_attention_bias(N, edge_index, edge_types, pos_encoding, device, edge_weights)
 
-        # 使用 PyTorch 2.x 的 Flash-Attention 接口（若可用）
-        q_t = q.unsqueeze(0)  # [1, H, N, Hd]
-        k_t = k.unsqueeze(0)
-        v_t = v.unsqueeze(0)
-        attn_mask = attn_bias.unsqueeze(0)  # [1, H, N, N]
-
+        # 计算注意力分数（添加温度系数）
         if hasattr(F, 'scaled_dot_product_attention'):
+            # Flash Attention 路径（带温度和偏置）
+            q_t = q.unsqueeze(0) / self.attn_temp  # 温度系数缩放
+            k_t = k.unsqueeze(0) / self.attn_temp
+            v_t = v.unsqueeze(0)
+            attn_mask = attn_bias.unsqueeze(0)
+
             attn_out = F.scaled_dot_product_attention(
                 q_t, k_t, v_t,
                 attn_mask=attn_mask,
                 dropout_p=self.attn_dropout.p if self.training else 0.0,
                 is_causal=False
-            )  # [1, H, N, Hd]
-            attn_out = attn_out.squeeze(0)  # [H, N, Hd]
+            )
+            attn_out = attn_out.squeeze(0)
         else:
-            # 兼容旧版：手动计算
-            scores = torch.matmul(q, k.transpose(-2, -1)) / np.sqrt(self.head_dim)  # [H, N, N]
-            scores = scores + attn_bias
+            # 手动计算路径（带温度和偏置）
+            scores = torch.matmul(q, k.transpose(-2, -1)) / (np.sqrt(self.head_dim) * self.attn_temp)
+            scores = scores + attn_bias  # 偏置叠加
             attn = torch.softmax(scores, dim=-1)
             attn = self.attn_dropout(attn)
-            attn_out = torch.matmul(attn, v)  # [H, N, Hd]
+            attn_out = torch.matmul(attn, v)
 
-        # 合并 heads -> [N, D]
+        # 合并 heads + 投影
         attn_out = attn_out.transpose(0, 1).contiguous().view(N, D)
         attn_out = self.out_proj(attn_out)
         attn_out = self.proj_dropout(attn_out)
 
-        x = x + attn_out  # 残差
+        # 残差连接
+        x = x + attn_out
 
-        # 3) FFN（Pre-LN）
+        # 3) FFN
         y = self.ln2(x)
         y = self.ffn(y)
         y = self.ffn_dropout(y)
+        out = x + y
 
-        out = x + y  # 残差
         return out
 
 
 class StructuralEncoder(nn.Module):
     """
-    结构编码器：使用Graphormer编码代码依赖图
+    增强版结构编码器：添加层归一化和输出结构约束
     """
 
     def __init__(
-        self,
-        node_feature_dim: int,
-        hidden_dim: int,
-        output_dim: int,
-        num_edge_types: int,
-        num_layers: int = 3,
-        num_heads: int = 8,
-        dropout: float = 0.1
+            self,
+            node_feature_dim: int,
+            hidden_dim: int,
+            output_dim: int,
+            num_edge_types: int,
+            num_layers: int = 3,
+            num_heads: int = 8,
+            dropout: float = 0.1,
+            bias_scale: float = 10.0,
+            attn_temp: float = 0.5,
     ):
         super().__init__()
 
@@ -335,78 +341,98 @@ class StructuralEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
 
-        # 初始节点特征投影
-        self.node_embedding = nn.Linear(node_feature_dim, hidden_dim)
+        # 初始节点特征投影（添加偏置和归一化）
+        self.node_embedding = nn.Sequential(
+            nn.Linear(node_feature_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout)
+        )
 
-        # Graphormer层
+        # Graphormer层（使用增强版）
         self.graphormer_layers = nn.ModuleList([
             GraphormerLayer(
                 in_channels=hidden_dim,
                 out_channels=hidden_dim,
                 num_edge_types=num_edge_types,
                 num_heads=num_heads,
-                dropout=dropout
+                dropout=dropout,
+                bias_scale=bias_scale,
+                attn_temp=attn_temp
             )
             for _ in range(num_layers)
         ])
 
-        # 输出投影
-        self.output_proj = nn.Linear(hidden_dim, output_dim)
-
-        self.dropout = nn.Dropout(dropout)
+        # 输出投影（添加结构归一化）
+        self.output_proj = nn.Sequential(
+            nn.LayerNorm(hidden_dim),
+            nn.Linear(hidden_dim, output_dim),
+            nn.Dropout(dropout)
+        )
 
     def forward(
-        self,
-        x: torch.Tensor,
-        edge_index: torch.Tensor,
-        edge_types: torch.Tensor,
-        pos_encoding: torch.Tensor,
-        edge_weights: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
-        """
-        Args:
-            x: [num_nodes, node_feature_dim] 初始节点特征
-            edge_index: [2, num_edges] 边索引
-            edge_types: [num_edges] 边类型
-            pos_encoding: [num_nodes, pos_dim] 位置编码（前 N 列为 SPD）
-            edge_weights: [num_edges] 边权重（可选），基于边类型的权重
-
-        Returns:
-            [num_nodes, output_dim] 节点的结构表示
-        """
+            self,
+            x: Tensor,
+            edge_index: Tensor,
+            edge_types: Tensor,
+            pos_encoding: Tensor,
+            edge_weights: Optional[Tensor] = None
+    ) -> Tensor:
         # 嵌入初始特征
         x = self.node_embedding(x)
-        x = self.dropout(x)
 
         # 通过Graphormer层
         for layer in self.graphormer_layers:
             x = layer(x, edge_index, edge_types, pos_encoding, edge_weights)
 
-        # 输出投影
+        # 输出投影 + L2归一化（增强余弦相似度的可解释性）
         x = self.output_proj(x)
+        x = F.normalize(x, p=2, dim=-1)  # 新增：输出向量L2归一化
 
         return x
+
+    def load_pretrained(self, checkpoint_path: str, device: torch.device | None = None):
+        """
+        加载预训练的结构编码器权重
+        
+        Args:
+            checkpoint_path: 预训练权重文件路径
+            device: 加载到的设备（默认为当前模型所在设备）
+        """
+        if device is None:
+            device = next(self.parameters()).device
+        
+        state_dict = torch.load(checkpoint_path, map_location=device)
+        self.load_state_dict(state_dict, strict=True)
+        print(f"✓ 已加载预训练结构编码器: {checkpoint_path}")
+
 
 
 class SemanticEncoder(nn.Module):
     """
-    语义编码器：使用预训练的Code-Text Encoder
+    语义编码器：使用 BGE-M3 模型进行语义编码
     """
 
     def __init__(
         self,
-        model_name: str = "microsoft/codebert-base",
+        model_name: str = "BAAI/bge-m3",
         output_dim: int = 256,
-        freeze_encoder: bool = False
+        freeze_encoder: bool = False,
+        batch_size: int = 32
     ):
         super().__init__()
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.encoder = AutoModel.from_pretrained(model_name)
+        self.model_name = model_name
+        self.batch_size = batch_size
 
+        # 加载 BGE-M3 模型
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        self.encoder = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+
+        # 获取编码器维度
         encoder_dim = self.encoder.config.hidden_size
 
-        # 投影层
+        # 投影层：将 BGE-M3 的输出维度投影到目标维度
         self.projection = nn.Linear(encoder_dim, output_dim)
 
         if freeze_encoder:
@@ -421,30 +447,53 @@ class SemanticEncoder(nn.Module):
         Returns:
             [num_texts, output_dim] 文本的语义表示
         """
-        # 分词和编码
-        inputs = self.tokenizer(
-            texts,
-            padding=True,
-            truncation=True,
-            max_length=256,
-            return_tensors="pt"
-        )
-
-        # 移到同一设备
         device = next(self.encoder.parameters()).device
-        inputs = {k: v.to(device) for k, v in inputs.items()}
+        all_embeddings = []
 
-        # 获取编码
-        with torch.no_grad():
-            outputs = self.encoder(**inputs)
+        # 批量处理文本
+        for i in range(0, len(texts), self.batch_size):
+            batch_texts = texts[i:i + self.batch_size]
 
-        # 使用[CLS]令牌的表示
-        cls_output = outputs.last_hidden_state[:, 0, :]
+            # 分词和编码
+            encoded_input = self.tokenizer(
+                batch_texts,
+                padding=True,
+                truncation=True,
+                max_length=512,  # BGE-M3 支持更长的序列
+                return_tensors="pt"
+            )
 
-        # 投影
-        semantic_repr = self.projection(cls_output)
+            # 移到同一设备
+            encoded_input = {k: v.to(device) for k, v in encoded_input.items()}
 
-        return semantic_repr
+            # 获取编码
+            with torch.no_grad() if not self.training else torch.enable_grad():
+                model_output = self.encoder(**encoded_input)
+
+                # BGE-M3 使用 mean pooling
+                # 检查是否有 pooler_output
+                if hasattr(model_output, 'pooler_output') and model_output.pooler_output is not None:
+                    # 如果有 pooler_output，直接使用
+                    embeddings = model_output.pooler_output
+                else:
+                    # 否则使用 mean pooling
+                    embeddings = model_output.last_hidden_state
+                    # 对 padding 位置进行掩码
+                    attention_mask = encoded_input['attention_mask']
+                    # 扩展 attention_mask 的维度以匹配 embeddings
+                    mask_expanded = attention_mask.unsqueeze(-1).expand(embeddings.size()).float()
+                    # 计算有效 token 的平均值
+                    sum_embeddings = torch.sum(embeddings * mask_expanded, dim=1)
+                    sum_mask = torch.clamp(mask_expanded.sum(dim=1), min=1e-9)
+                    embeddings = sum_embeddings / sum_mask
+
+            # 投影到目标维度
+            semantic_repr = self.projection(embeddings)
+
+            all_embeddings.append(semantic_repr)
+
+        # 合并所有批次
+        return torch.cat(all_embeddings, dim=0)
 
 
 class CrossAttentionFusion(nn.Module):
@@ -572,7 +621,11 @@ class CrossAttentionFusion(nn.Module):
 
         # 4. 计算注意力权重
         if hasattr(F, 'scaled_dot_product_attention'):
-            scale = torch.exp(self.attention_scale) if self.use_adaptive_scale else self.attention_scale
+            # PyTorch 要求 scale 为 float，这里将自适应缩放转换为 Python float
+            if self.use_adaptive_scale:
+                scale = float(torch.exp(self.attention_scale).item())
+            else:
+                scale = float(self.attention_scale)
 
             # 使用Flash Attention
             attn_output = F.scaled_dot_product_attention(
@@ -582,7 +635,7 @@ class CrossAttentionFusion(nn.Module):
                 attn_mask=attention_mask.unsqueeze(0) if attention_mask is not None else None,
                 dropout_p=self.dropout.p if self.training else 0.0,
                 is_causal=False,
-                scale=scale  # 传入自适应缩放因子
+                scale=scale  # 传入自适应缩放因子（float）
             ).transpose(1, 2).squeeze(0)
         else:
             # 兼容旧版本PyTorch：手动计算注意力
@@ -644,14 +697,16 @@ class CodeGraphEncoder(nn.Module):
         num_structural_layers: int = 3,
         num_heads: int = 8,
         dropout: float = 0.1,
-        code_encoder_model: str = "microsoft/codebert-base",
-        freeze_code_encoder: bool = False
+        code_encoder_model: str = "BAAI/bge-m3",
+        freeze_code_encoder: bool = False,
+        structural_only: bool = False
     ):
         super().__init__()
 
         self.structural_output_dim = structural_output_dim
         self.semantic_output_dim = semantic_output_dim
         self.final_output_dim = final_output_dim
+        self.structural_only = structural_only
 
         # 结构编码器
         self.structural_encoder = StructuralEncoder(
@@ -664,21 +719,25 @@ class CodeGraphEncoder(nn.Module):
             dropout=dropout
         )
 
-        # 语义编码器
-        self.semantic_encoder = SemanticEncoder(
-            model_name=code_encoder_model,
-            output_dim=semantic_output_dim,
-            freeze_encoder=freeze_code_encoder
-        )
+        if not self.structural_only:
+            # 语义编码器
+            self.semantic_encoder = SemanticEncoder(
+                model_name=code_encoder_model,
+                output_dim=semantic_output_dim,
+                freeze_encoder=freeze_code_encoder
+            )
 
-        # 跨模态融合
-        self.fusion = CrossAttentionFusion(
-            structural_dim=structural_output_dim,
-            semantic_dim=semantic_output_dim,
-            output_dim=final_output_dim,
-            num_heads=num_heads,
-            dropout=dropout
-        )
+            # 跨模态融合
+            self.fusion = CrossAttentionFusion(
+                structural_dim=structural_output_dim,
+                semantic_dim=semantic_output_dim,
+                output_dim=final_output_dim,
+                num_heads=num_heads,
+                dropout=dropout
+            )
+        else:
+            self.semantic_encoder = None
+            self.fusion = None
 
     def forward(
         self,
@@ -686,9 +745,9 @@ class CodeGraphEncoder(nn.Module):
         edge_index: torch.Tensor,
         edge_types: torch.Tensor,
         pos_encoding: torch.Tensor,
-        texts: List[str],
+        texts: Optional[List[str]] = None,
         edge_weights: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ):
         """
         Args:
             x: [num_nodes, 1] 初始节点特征
@@ -704,13 +763,22 @@ class CodeGraphEncoder(nn.Module):
         # 结构编码（使用边权重）
         structural_repr = self.structural_encoder(x, edge_index, edge_types, pos_encoding, edge_weights)
 
+        # 仅结构模式：保持原有行为，返回结构 embedding
+        if self.structural_only:
+            return structural_repr
+
         # 语义编码
+        assert texts is not None, "texts 不能为空，当 structural_only=False 时需要文本输入"
         semantic_repr = self.semantic_encoder(texts)
 
-        # 跨模态融合
+        # 跨模态融合，得到融合表示
         fused_repr = self.fusion(structural_repr, semantic_repr)
 
-        return fused_repr
+        # 返回三种表示，便于训练和下游使用：
+        # - structural_repr: 结构 embedding
+        # - semantic_repr: 语义 embedding
+        # - fused_repr: 融合 embedding（结构 + 语义）
+        return structural_repr, semantic_repr, fused_repr
 
 
 class CodeGraphDataBuilder:
@@ -760,7 +828,7 @@ class CodeGraphDataBuilder:
                 weight = 1.0
                 if edge_type_weights is not None:
                     weight = edge_type_weights.get_weight(edge_type)
-                
+
                 adj_matrix[src_id, dst_id] = weight
                 edge_list.append([src_id, dst_id])
                 edge_type_list.append(self.edge_type_to_idx[edge_type])
@@ -788,10 +856,31 @@ class CodeGraphDataBuilder:
 
         pos_encoding = torch.cat([sp_encoding, pr_encoding, deg_encoding], dim=1)
 
-        # 构建文本
+        # 构建文本（优化后的格式，更适合 BGE-M3 模型）
         texts = []
         for cls in self.classes:
-            text = f"{cls.name}. {cls.description}. Methods: {', '.join(cls.methods)}"
+            # 类名（最重要的特征）
+            class_name = cls.name
+
+            # 描述（核心功能）
+            description = cls.description if cls.description else "无描述"
+
+            # 方法列表（限制数量，避免文本过长）
+            if cls.methods:
+                # 只取前5个方法，避免文本过长
+                methods_list = cls.methods[:5]
+                methods_text = f"主要方法: {', '.join(methods_list)}"
+                if len(cls.methods) > 5:
+                    methods_text += f" 等共{len(cls.methods)}个方法"
+            else:
+                methods_text = ""
+
+            # 组合文本：类名 + 描述 + 方法
+            if methods_text:
+                text = f"{class_name}. {description}. {methods_text}"
+            else:
+                text = f"{class_name}. {description}"
+
             texts.append(text)
 
         return x, edge_index, edge_types, pos_encoding, texts, edge_weights

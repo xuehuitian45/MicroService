@@ -30,8 +30,8 @@ from dataclasses import dataclass
 @dataclass
 class DataConfig:
     """数据配置"""
-    dataset_path: str = "/Users/xht/Downloads/MicroService/data/data.json"
-    result_path: str = "/Users/xht/Downloads/MicroService/result/result.json"
+    dataset_path: str = "C:/Users/lenovo/Desktop/MicroService/data/data.json"
+    result_path: str = "C:/Users/lenovo/Desktop/MicroService/result/result.json"
 
 @dataclass
 class EdgeTypeWeightConfig:
@@ -82,16 +82,17 @@ class PartitionConfig:
     """划分配置"""
     num_communities: int = 7
     random_seed: int = 42
-    alpha = 1.0  # 结构内聚权重
-    beta = 1.0  # 语义内聚权重
-    gamma = 1.0  # 跨服务耦合惩罚
+    alpha = 5.0  # 结构内聚权重
+    beta = 1  # 语义内聚权重
+    gamma = 3  # 跨服务耦合惩罚
     size_lower = [int(5) for _ in range(num_communities)]
     size_upper = [int(20) for _ in range(num_communities)]
     pair_threshold = 0.0
-    time_limit_sec = 20
+    time_limit_sec = 30
     # 迭代/Agent 优化配置（默认开启迭代 + Agent，可在此修改）
+
     enable_agent_optimization = True
-    max_iterations = 5
+    max_iterations = 3
     edge_type_weights: EdgeTypeWeightConfig = None  # 边类型权重配置
     
     def __post_init__(self):
@@ -114,10 +115,10 @@ class StructuralEncoderConfig:
 @dataclass
 class SemanticEncoderConfig:
     """语义编码器配置"""
-    model_name: str = "microsoft/codebert-base"
+    model_name: str = "BAAI/bge-m3"
     output_dim: int = 256
     freeze_encoder: bool = False
-    max_length: int = 256
+    max_length: int = 512  # BGE-M3 支持更长的序列
 
 
 @dataclass
@@ -171,7 +172,7 @@ SMALL_GRAPH_CONFIG = CodeGraphEncoderConfig(
         dropout=0.1
     ),
     semantic=SemanticEncoderConfig(
-        model_name="microsoft/codebert-base",
+        model_name="BAAI/bge-m3",
         output_dim=256,
         freeze_encoder=False
     ),
@@ -239,10 +240,10 @@ LIGHTWEIGHT_CONFIG = CodeGraphEncoderConfig(
         dropout=0.1
     ),
     semantic=SemanticEncoderConfig(
-        model_name="microsoft/codebert-base",
+        model_name="BAAI/bge-m3",
         output_dim=128,
         freeze_encoder=True,
-        max_length=128
+        max_length=512
     ),
     fusion=FusionConfig(
         structural_dim=128,
@@ -263,7 +264,7 @@ HIGHPERFORMANCE_CONFIG = CodeGraphEncoderConfig(
         dropout=0.1
     ),
     semantic=SemanticEncoderConfig(
-        model_name="microsoft/graphcodebert-base",
+        model_name="BAAI/bge-m3",
         output_dim=512,
         freeze_encoder=False,
         max_length=512
