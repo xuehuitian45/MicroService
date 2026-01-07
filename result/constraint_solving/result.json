@@ -1,0 +1,89 @@
+{
+    "0": [
+        "ExternalContextProducer",
+        "PingJDBCRead2JSP",
+        "PingServlet2Jsp",
+        "TradeWebContextListener",
+        "JSFLoginFilter"
+    ],
+    "1": [
+        "PingSession2",
+        "PingServlet2SessionLocal",
+        "PingSession1",
+        "PingSession3",
+        "PingJSONP"
+    ],
+    "2": [
+        "QuoteData",
+        "FinancialUtils",
+        "TradeConfig",
+        "MarketSummarySingleton",
+        "TradeAppServlet",
+        "TradeSLSBBean",
+        "AccountProfileDataBean",
+        "QuoteDataBean",
+        "TradeConfigServlet",
+        "TradeBuildDB",
+        "TradeServletAction",
+        "TradeActionProducer",
+        "TradeScenarioServlet",
+        "MarketSummaryDataBean",
+        "OrderDataBean",
+        "AccountDataBean",
+        "RecentStockChangeList",
+        "HoldingDataBean",
+        "QuoteJSF",
+        "TradeAction"
+    ],
+    "3": [
+        "PingServlet2Include",
+        "PingManagedExecutor",
+        "PingServlet2IncludeRcv",
+        "PingManagedThread",
+        "PingServlet2JNDI"
+    ],
+    "4": [
+        "JsonMessage",
+        "PingUpgradeServlet",
+        "KeyBlock",
+        "JsonDecoder",
+        "ActionMessage",
+        "PingWebSocketTextSync",
+        "DTStreamer3MDB",
+        "TimerStat",
+        "KeySequenceDirect",
+        "OrdersAlertFilter",
+        "ExplicitGC",
+        "MDBStats",
+        "MarketSummaryWebSocket",
+        "ActionDecoder",
+        "PingWebSocketTextAsync",
+        "PingWebSocketBinary",
+        "JsonEncoder",
+        "PingWebSocketJson",
+        "Log"
+    ],
+    "5": [
+        "RunStatsDataBean",
+        "TradeDirect",
+        "PingJDBCWrite",
+        "PingJDBCRead",
+        "PingServlet2DB"
+    ],
+    "6": [
+        "PingServletCDIBeanManagerViaCDICurrent",
+        "PingServlet2Servlet",
+        "PingInterceptor",
+        "PingEJBLocalDecorator",
+        "PingCDIJSFBean",
+        "PingServlet2PDF",
+        "PingServlet",
+        "PingEJBLocal",
+        "PingServletWriter",
+        "PingServletCDIBeanManagerViaJNDI",
+        "PingCDIBean",
+        "PingServletCDI",
+        "PingBean",
+        "PingServlet2ServletRcv"
+    ]
+}

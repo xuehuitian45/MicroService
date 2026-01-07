@@ -1,0 +1,89 @@
+{
+    "Service-0": [
+        "JsonMessage",
+        "PingServlet2Servlet",
+        "JsonDecoder",
+        "PingWebSocketTextSync",
+        "PingServlet",
+        "PingJSONP",
+        "PingWebSocketTextAsync",
+        "PingWebSocketBinary",
+        "PingServletWriter",
+        "JsonEncoder",
+        "PingWebSocketJson",
+        "PingBean",
+        "PingServlet2ServletRcv"
+    ],
+    "Service-6": [
+        "PingServletCDIBeanManagerViaCDICurrent",
+        "PingUpgradeServlet",
+        "PingInterceptor",
+        "PingEJBLocalDecorator",
+        "RunStatsDataBean",
+        "PingCDIJSFBean",
+        "ActionMessage",
+        "PingServlet2PDF",
+        "DTStreamer3MDB",
+        "PingEJBLocal",
+        "ExternalContextProducer",
+        "TimerStat",
+        "ExplicitGC",
+        "MDBStats",
+        "ActionDecoder",
+        "PingServletCDIBeanManagerViaJNDI",
+        "PingCDIBean",
+        "PingServletCDI",
+        "JSFLoginFilter",
+        "Log"
+    ],
+    "Service-5": [
+        "PingServlet2Include",
+        "TradeAppServlet",
+        "TradeConfigServlet",
+        "PingServlet2IncludeRcv",
+        "TradeScenarioServlet"
+    ],
+    "Service-2": [
+        "QuoteData",
+        "TradeConfig",
+        "MarketSummarySingleton",
+        "PingJDBCRead2JSP",
+        "AccountProfileDataBean",
+        "QuoteDataBean",
+        "TradeBuildDB",
+        "OrdersAlertFilter",
+        "TradeServletAction",
+        "TradeActionProducer",
+        "MarketSummaryWebSocket",
+        "PingServlet2Jsp",
+        "TradeWebContextListener",
+        "MarketSummaryDataBean",
+        "OrderDataBean",
+        "AccountDataBean",
+        "RecentStockChangeList",
+        "HoldingDataBean",
+        "QuoteJSF",
+        "TradeAction"
+    ],
+    "Service-4": [
+        "KeyBlock",
+        "TradeDirect",
+        "FinancialUtils",
+        "TradeSLSBBean",
+        "KeySequenceDirect"
+    ],
+    "Service-3": [
+        "PingJDBCWrite",
+        "PingManagedExecutor",
+        "PingJDBCRead",
+        "PingServlet2JNDI",
+        "PingServlet2DB"
+    ],
+    "Service-1": [
+        "PingSession2",
+        "PingServlet2SessionLocal",
+        "PingSession1",
+        "PingSession3",
+        "PingManagedThread"
+    ]
+}

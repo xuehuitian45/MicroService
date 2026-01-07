@@ -261,7 +261,7 @@ def example_full_encoder():
             K=config.PartitionConfig.num_communities,
             alpha=config.PartitionConfig.alpha,
             beta_struct=1.0,
-            beta_sem=1.0,
+            beta_sem=2.0,
             beta_fused=1.0,
             gamma=config.PartitionConfig.gamma,
             must_link=None,

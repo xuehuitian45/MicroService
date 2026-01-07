@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微服务节点依赖关系可视化</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            width: 100%;
+            height: 100vh;
+            overflow: auto;
+        }
+        
+        .service-box {
+            stroke: #333;
+            stroke-width: 2;
+            fill: none;
+            opacity: 0.8;
+        }
+        
+        .service-label {
+            font-size: 18px;
+            font-weight: bold;
+            fill: #333;
+        }
+        
+        .node {
+            cursor: pointer;
+            stroke: #fff;
+            stroke-width: 2;
+        }
+        
+        .node:hover {
+            stroke-width: 3;
+        }
+        
+        .node-label {
+            font-size: 12px;
+            fill: #333;
+            pointer-events: none;
+            text-anchor: middle;
+        }
+        
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 1.5;
+            fill: none;
+        }
+        
+        .link:hover {
+            stroke-opacity: 1;
+            stroke-width: 2;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 5px;
+            pointer-events: none;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        .legend {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .legend-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #333;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button onclick="resetZoom()">重置视图</button>
+        <button onclick="toggleLabels()">切换标签</button>
+    </div>
+    
+    <div class="legend" id="legend"></div>
+    
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+    
+    <div class="container">
+        <svg id="graph"></svg>
+    </div>
+
+    <script>
+        let nodesData = [];
+        let servicesData = {};
+        let nodes = [];
+        let links = [];
+        let serviceBoxes = [];
+        let showLabels = true;
+        
+        // 颜色方案
+        const colorScheme = d3.schemeCategory10;
+        
+        // 加载数据
+        Promise.all([
+            d3.json('../data/data.json'),
+            d3.json('../result/result.json')
+        ]).then(function([data, result]) {
+            nodesData = data;
+            servicesData = result;
+            initializeVisualization();
+        }).catch(function(error) {
+            console.error('加载数据失败:', error);
+            alert('加载数据失败，请确保data.json和result.json文件存在');
+        });
+        
+        function initializeVisualization() {
+            const svg = d3.select('#graph');
+            const container = d3.select('.container');
+            const width = container.node().clientWidth;
+            const height = container.node().clientHeight;
+            
+            svg.attr('width', width)
+               .attr('height', height);
+            
+            // 创建缩放和平移行为
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on('zoom', function(event) {
+                    g.attr('transform', event.transform);
+                });
+            
+            svg.call(zoom);
+            
+            const g = svg.append('g');
+            
+            // 创建节点名称到ID的映射
+            const nameToId = {};
+            nodesData.forEach(node => {
+                nameToId[node.name] = node.id;
+            });
+            
+            // 创建ID到节点的映射
+            const idToNode = {};
+            nodesData.forEach(node => {
+                idToNode[node.id] = node;
+            });
+            
+            // 创建服务到节点名称列表的映射
+            const serviceToNodes = {};
+            Object.keys(servicesData).forEach(serviceId => {
+                serviceToNodes[serviceId] = servicesData[serviceId];
+            });
+            
+            // 创建节点名称到服务ID的映射
+            const nodeToService = {};
+            Object.keys(servicesData).forEach(serviceId => {
+                servicesData[serviceId].forEach(nodeName => {
+                    nodeToService[nodeName] = serviceId;
+                });
+            });
+            
+            // 创建节点对象
+            const nodeMap = new Map();
+            nodesData.forEach(node => {
+                const serviceId = nodeToService[node.name] || 'unknown';
+                nodeMap.set(node.id, {
+                    id: node.id,
+                    name: node.name,
+                    description: node.description,
+                    serviceId: serviceId,
+                    x: 0,
+                    y: 0
+                });
+            });
+            
+            nodes = Array.from(nodeMap.values());
+            
+            // 创建连接
+            nodesData.forEach(node => {
+                if (node.dependencies && node.dependencies.length > 0) {
+                    node.dependencies.forEach(depId => {
+                        if (nodeMap.has(depId)) {
+                            links.push({
+                                source: node.id,
+                                target: depId,
+                                type: node.edge_types && node.edge_types.length > 0 
+                                    ? node.edge_types[node.dependencies.indexOf(depId)] 
+                                    : 'call'
+                            });
+                        }
+                    });
+                }
+            });
+            
+            // 布局：按服务分组
+            const serviceGroups = {};
+            nodes.forEach(node => {
+                if (!serviceGroups[node.serviceId]) {
+                    serviceGroups[node.serviceId] = [];
+                }
+                serviceGroups[node.serviceId].push(node);
+            });
+            
+            // 计算每个服务框的位置和大小
+            const serviceLayout = {};
+            const boxPadding = 40;
+            const nodeSpacing = 80;
+            const serviceSpacing = 200;
+            const maxBoxWidth = Math.min(800, width - 200); // 限制单个服务框的最大宽度
+            
+            let currentX = 100;
+            let currentY = 100;
+            let maxHeight = 0;
+            let maxY = 0;
+            
+            Object.keys(serviceGroups).sort().forEach(serviceId => {
+                const serviceNodes = serviceGroups[serviceId];
+                // 计算合适的列数，使框不会太宽
+                const idealCols = Math.ceil(Math.sqrt(serviceNodes.length));
+                const maxCols = Math.floor((maxBoxWidth - boxPadding * 2) / nodeSpacing);
+                const cols = Math.min(idealCols, maxCols, serviceNodes.length);
+                const rows = Math.ceil(serviceNodes.length / cols);
+                
+                const boxWidth = cols * nodeSpacing + boxPadding * 2;
+                const boxHeight = rows * nodeSpacing + boxPadding * 2 + 30; // +30 for service label
+                
+                // 如果超出宽度，换行
+                if (currentX + boxWidth > width - 100 && currentX > 100) {
+                    currentX = 100;
+                    currentY += maxHeight + serviceSpacing;
+                    maxHeight = 0;
+                }
+                
+                serviceLayout[serviceId] = {
+                    x: currentX,
+                    y: currentY,
+                    width: boxWidth,
+                    height: boxHeight,
+                    nodes: serviceNodes
+                };
+                
+                // 在框内布局节点
+                serviceNodes.forEach((node, index) => {
+                    const col = index % cols;
+                    const row = Math.floor(index / cols);
+                    node.x = currentX + boxPadding + col * nodeSpacing;
+                    node.y = currentY + boxPadding + 30 + row * nodeSpacing; // +30 for service label
+                });
+                
+                maxHeight = Math.max(maxHeight, boxHeight);
+                maxY = Math.max(maxY, currentY + boxHeight);
+                currentX += boxWidth + serviceSpacing;
+            });
+            
+            // 调整SVG高度以适应内容
+            const finalHeight = Math.max(height, maxY + 100);
+            svg.attr('height', finalHeight);
+            
+            // 绘制连接线
+            const link = g.append('g')
+                .selectAll('line')
+                .data(links)
+                .enter()
+                .append('line')
+                .attr('class', 'link')
+                .attr('x1', d => nodeMap.get(d.source).x)
+                .attr('y1', d => nodeMap.get(d.source).y)
+                .attr('x2', d => nodeMap.get(d.target).x)
+                .attr('y2', d => nodeMap.get(d.target).y);
+            
+            // 绘制服务框
+            const serviceBox = g.append('g')
+                .selectAll('rect')
+                .data(Object.keys(serviceLayout))
+                .enter()
+                .append('rect')
+                .attr('class', 'service-box')
+                .attr('x', d => serviceLayout[d].x)
+                .attr('y', d => serviceLayout[d].y)
+                .attr('width', d => serviceLayout[d].width)
+                .attr('height', d => serviceLayout[d].height)
+                .attr('fill', d => {
+                    const colorIndex = parseInt(d) % colorScheme.length;
+                    return d3.color(colorScheme[colorIndex]).copy({opacity: 0.1});
+                })
+                .attr('stroke', d => {
+                    const colorIndex = parseInt(d) % colorScheme.length;
+                    return colorScheme[colorIndex];
+                });
+            
+            // 绘制服务标签
+            const serviceLabel = g.append('g')
+                .selectAll('text')
+                .data(Object.keys(serviceLayout))
+                .enter()
+                .append('text')
+                .attr('class', 'service-label')
+                .attr('x', d => serviceLayout[d].x + serviceLayout[d].width / 2)
+                .attr('y', d => serviceLayout[d].y + 20)
+                .attr('text-anchor', 'middle')
+                .text(d => `服务 ${d} (${serviceGroups[d].length} 个节点)`);
+            
+            // 绘制节点
+            const node = g.append('g')
+                .selectAll('circle')
+                .data(nodes)
+                .enter()
+                .append('circle')
+                .attr('class', 'node')
+                .attr('r', 15)
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y)
+                .attr('fill', d => {
+                    const colorIndex = parseInt(d.serviceId) % colorScheme.length;
+                    return colorScheme[colorIndex];
+                })
+                .on('mouseover', function(event, d) {
+                    d3.select(this).attr('r', 18);
+                    showTooltip(event, d);
+                })
+                .on('mouseout', function(event, d) {
+                    d3.select(this).attr('r', 15);
+                    hideTooltip();
+                });
+            
+            // 绘制节点标签
+            const nodeLabel = g.append('g')
+                .selectAll('text')
+                .data(nodes)
+                .enter()
+                .append('text')
+                .attr('class', 'node-label')
+                .attr('x', d => d.x)
+                .attr('y', d => d.y + 30)
+                .text(d => d.name)
+                .style('display', showLabels ? 'block' : 'none');
+            
+            // 创建图例
+            createLegend(Object.keys(serviceGroups));
+            
+            // 保存引用以便后续操作
+            window.visualization = {
+                svg: svg,
+                g: g,
+                node: node,
+                nodeLabel: nodeLabel,
+                link: link,
+                zoom: zoom
+            };
+        }
+        
+        function showTooltip(event, d) {
+            const tooltip = d3.select('#tooltip');
+            tooltip.style('display', 'block')
+                   .style('left', (event.pageX + 10) + 'px')
+                   .style('top', (event.pageY - 10) + 'px')
+                   .html(`<strong>${d.name}</strong><br/>服务: ${d.serviceId}<br/>${d.description}`);
+        }
+        
+        function hideTooltip() {
+            d3.select('#tooltip').style('display', 'none');
+        }
+        
+        function createLegend(serviceIds) {
+            const legend = d3.select('#legend');
+            legend.html('<div style="font-weight: bold; margin-bottom: 10px;">服务图例</div>');
+            
+            serviceIds.sort().forEach(serviceId => {
+                const colorIndex = parseInt(serviceId) % colorScheme.length;
+                const item = legend.append('div')
+                    .attr('class', 'legend-item');
+                
+                item.append('div')
+                    .attr('class', 'legend-color')
+                    .style('background-color', colorScheme[colorIndex]);
+                
+                item.append('span')
+                    .text(`服务 ${serviceId} (${servicesData[serviceId].length} 个节点)`);
+            });
+        }
+        
+        function resetZoom() {
+            if (window.visualization) {
+                window.visualization.svg.transition()
+                    .duration(750)
+                    .call(window.visualization.zoom.transform, d3.zoomIdentity);
+            }
+        }
+        
+        function toggleLabels() {
+            showLabels = !showLabels;
+            if (window.visualization) {
+                window.visualization.nodeLabel
+                    .style('display', showLabels ? 'block' : 'none');
+            }
+        }
+        
+        // 窗口大小改变时调整SVG大小
+        window.addEventListener('resize', function() {
+            const container = d3.select('.container');
+            const width = container.node().clientWidth;
+            const height = container.node().clientHeight;
+            d3.select('#graph')
+                .attr('width', width)
+                .attr('height', height);
+        });
+    </script>
+</body>
+</html>
+

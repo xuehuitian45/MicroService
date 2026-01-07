@@ -8,26 +8,36 @@ plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
 # ------------- 1. 数据准备 -------------
 # 指标名称（按展示顺序）
 metrics = [
+    '语义内聚性（SC）',
+    '服务耦合度（SCP）',
+    '服务边界清晰度（SBC）',
     '内部服务依赖密度（ISDD）',
     '服务依赖熵（SDE）',
     '服务规模平衡性（SSB）',
     'Nano服务占比（R_nano）',
     '结构不稳定性指数（SII）',
-    '内部调用占比（ICP）'
+    '内部调用占比（ICP）',
+    '模块度（Modularity）',
+    '服务循环依赖比例（SCDR）'
 ]
 
 # 两个划分结果的数值
-constraint_solve = [0.1179, 0.6249, 0.6867, 0.0000, 0.5665, 0.7616]
-mono2micro = [0.1471, 0.1017, 0.7565, 0.2857, 0.6200, 0.6954]
+constraint_solve = [0.8159, 0.7880, 0.5177, 0.1408, 0.6138, 0.6867, 0.0000, 0.4969, 0.7616, 0.3900, 0.4286]
+mono2micro = [0.8130, 0.7823, 0.5172, 0.1471, 0.1017, 0.7565, 0.2857, 0.6200, 0.6954, 0.3579, 0.5714]
 
 # 指标优劣方向：higher_better=True 越高越好，False 越低越好
 higher_better = [
-    True,  # ISDD 越高越好
+    True,   # SC 越高越好
+    False,  # SCP 越低越好
+    True,   # SBC 越高越好
+    True,   # ISDD 越高越好
     False,  # SDE 越低越好
     False,  # SSB 越低越好
     False,  # R_nano 越低越好
     False,  # SII 越低越好
-    True  # ICP 越高越好
+    True,   # ICP 越高越好
+    True,   # Modularity 越高越好
+    False   # SCDR 越低越好
 ]
 
 # ------------- 2. 自动判断每个指标的更优值 -------------
@@ -55,11 +65,11 @@ better_label_color = 'darkgreen'  # “更好”标注的颜色
 better_label_fontsize = 12  # 【修改1】放大“更好”标注字体（原10）
 better_label_fontsize = 12  # “更好”标注的字体大小
 
-# 创建画布
-fig, ax = plt.subplots(figsize=(14, 9))
+# 创建画布（调整大小以适应更多指标）
+fig, ax = plt.subplots(figsize=(18, 9))
 
 # 绘制柱状图
-rects1 = ax.bar(x - width / 2, constraint_solve, width, label='约束求解', color=colors[0])
+rects1 = ax.bar(x - width / 2, constraint_solve, width, label='课题方案', color=colors[0])
 rects2 = ax.bar(x + width / 2, mono2micro, width, label='mono2micro', color=colors[1])
 
 # ------------- 4. 图表美化 & 标注“更好” -------------
@@ -70,7 +80,7 @@ ax.set_xlabel('评估指标', fontsize=16)  # 原14
 
 # 设置x轴刻度和标签 - 【修改3】放大x轴标签字体
 ax.set_xticks(x)
-ax.set_xticklabels(metrics, rotation=30, ha='right', fontsize=13)  # 原11
+ax.set_xticklabels(metrics, rotation=45, ha='right', fontsize=11)  # 调整角度以适应更多指标
 
 # 添加优劣方向标注 - 【修改4】放大优劣方向标注字体
 for i, (metric, hb) in enumerate(zip(metrics, higher_better)):

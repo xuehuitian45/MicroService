@@ -86,6 +86,7 @@ def _save_iteration_result(
     try:
         base_result_path = DataConfig.result_path
         result_dir = os.path.dirname(base_result_path)
+        os.makedirs(result_dir, exist_ok=True)
         iter_path = os.path.join(result_dir, f"result_iter_{iteration}.json")
 
         groups: Dict[str, List[Any]] = {}

@@ -1,0 +1,89 @@
+{
+    "Service-6": [
+        "JsonMessage",
+        "PingServletCDIBeanManagerViaCDICurrent",
+        "PingInterceptor",
+        "JsonDecoder",
+        "PingCDIJSFBean",
+        "ActionMessage",
+        "PingServlet2PDF",
+        "PingSession2",
+        "PingServlet2SessionLocal",
+        "PingSession1",
+        "ExternalContextProducer",
+        "PingSession3",
+        "PingJSONP",
+        "ActionDecoder",
+        "PingServlet2Jsp",
+        "PingServletCDIBeanManagerViaJNDI",
+        "PingCDIBean",
+        "PingServletCDI",
+        "JsonEncoder",
+        "PingBean"
+    ],
+    "Service-5": [
+        "PingServlet2Include",
+        "PingServlet2Servlet",
+        "PingServlet",
+        "PingServletWriter",
+        "PingServlet2IncludeRcv",
+        "PingServlet2ServletRcv"
+    ],
+    "Service-3": [
+        "PingUpgradeServlet",
+        "PingManagedExecutor",
+        "PingManagedThread"
+    ],
+    "Service-1": [
+        "PingEJBLocalDecorator",
+        "PingEJBLocal",
+        "PingServlet2JNDI"
+    ],
+    "Service-4": [
+        "QuoteData",
+        "RunStatsDataBean",
+        "KeyBlock",
+        "TradeDirect",
+        "PingJDBCWrite",
+        "DTStreamer3MDB",
+        "PingJDBCRead2JSP",
+        "AccountProfileDataBean",
+        "QuoteDataBean",
+        "TimerStat",
+        "KeySequenceDirect",
+        "ExplicitGC",
+        "MDBStats",
+        "PingJDBCRead",
+        "MarketSummaryDataBean",
+        "OrderDataBean",
+        "AccountDataBean",
+        "RecentStockChangeList",
+        "HoldingDataBean",
+        "PingServlet2DB"
+    ],
+    "Service-2": [
+        "FinancialUtils",
+        "TradeConfig",
+        "MarketSummarySingleton",
+        "TradeAppServlet",
+        "TradeSLSBBean",
+        "TradeConfigServlet",
+        "TradeBuildDB",
+        "OrdersAlertFilter",
+        "TradeServletAction",
+        "TradeActionProducer",
+        "MarketSummaryWebSocket",
+        "TradeWebContextListener",
+        "TradeScenarioServlet",
+        "JSFLoginFilter",
+        "QuoteJSF",
+        "TradeAction",
+        "Log"
+    ],
+    "Service-0": [
+        "PingWebSocketTextSync",
+        "PingWebSocketTextAsync",
+        "PingWebSocketBinary",
+        "PingWebSocketJson"
+    ]
+}

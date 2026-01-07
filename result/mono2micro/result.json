@@ -1,0 +1,90 @@
+{
+    "0": [
+        "PingManagedExecutor",
+        "PingServletWriter",
+        "TradeScenarioServlet",
+        "PingServlet2JNDI",
+        "PingWebSocketTextAsync",
+        "PingWebSocketBinary",
+        "PingServlet",
+        "ExplicitGC",
+        "PingWebSocketTextSync",
+        "MarketSummaryDataBean",
+        "PingSession3",
+        "PingManagedThread",
+        "PingSession1",
+        "PingSession2",
+        "PingJSONP",
+        "PingUpgradeServlet",
+        "PingServlet2Include",
+        "PingServlet2IncludeRcv",
+        "PingServlet2Servlet",
+        "PingServlet2ServletRcv",
+        "PingBean",
+        "PingServlet2Jsp",
+        "PingServlet2PDF",
+        "PingServlet2SessionLocal"
+    ],
+    "1": [
+        "HoldingDataBean",
+        "FinancialUtils",
+        "AccountProfileDataBean",
+        "AccountDataBean",
+        "TradeAction",
+        "TradeSLSBBean",
+        "Log",
+        "TradeConfig",
+        "TradeAppServlet",
+        "TradeServletAction",
+        "OrdersAlertFilter",
+        "QuoteDataBean",
+        "OrderDataBean",
+        "MarketSummarySingleton"
+    ],
+    "2": [
+        "TradeConfigServlet",
+        "TradeBuildDB",
+        "TradeDirect",
+        "KeySequenceDirect",
+        "KeyBlock",
+        "KeyBlock::KeyBlockIterator",
+        "RunStatsDataBean",
+        "PingServlet2DB",
+        "TradeWebContextListener",
+        "PingJDBCWrite",
+        "PingJDBCRead2JSP",
+        "PingJDBCRead",
+        "MarketSummaryWebSocket",
+        "RecentStockChangeList",
+        "DTStreamer3MDB",
+        "TimerStat",
+        "MDBStats"
+    ],
+    "3": [
+        "PingInterceptor",
+        "PingCDIBean",
+        "PingServletCDIBeanManagerViaCDICurrent",
+        "PingServletCDIBeanManagerViaJNDI",
+        "PingEJBLocalDecorator",
+        "PingEJBLocal",
+        "PingServletCDI"
+    ],
+    "4": [
+        "JSFLoginFilter",
+        "PingCDIJSFBean",
+        "QuoteJSF",
+        "TradeActionProducer",
+        "ExternalContextProducer",
+        "QuoteData"
+    ],
+    "5": [
+        "PingWebSocketJson",
+        "JsonEncoder",
+        "JsonMessage",
+        "JsonDecoder"
+    ],
+    "6": [
+        "ActionDecoder",
+        "ActionMessage"
+    ]
+}

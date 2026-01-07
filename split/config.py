@@ -31,7 +31,7 @@ from dataclasses import dataclass
 class DataConfig:
     """数据配置"""
     dataset_path: str = "C:/Users/lenovo/Desktop/MicroService/data/data.json"
-    result_path: str = "C:/Users/lenovo/Desktop/MicroService/result/result.json"
+    result_path: str = "C:/Users/lenovo/Desktop/MicroService/result/constraint_solving/result.json"
 
 @dataclass
 class EdgeTypeWeightConfig:
@@ -52,29 +52,7 @@ class EdgeTypeWeightConfig:
     def get_weight(self, edge_type: str) -> float:
         """获取指定边类型的权重，默认为1.0"""
         return self.type_weights.get(edge_type, 1.0)
-    
-    def apply_weight(self, similarity_matrix, edge_types_list):
-        """
-        将边类型权重应用到相似度矩阵
-        
-        Args:
-            similarity_matrix: [N, N] 相似度矩阵
-            edge_types_list: 边类型列表，edge_types_list[i] 表示边 i 的类型
-        
-        Returns:
-            加权后的相似度矩阵
-        """
-        weighted_matrix = similarity_matrix.copy()
-        
-        # 如果有边类型信息，应用权重
-        if edge_types_list and len(edge_types_list) > 0:
-            for edge_type in edge_types_list:
-                # 获取边类型的权重
-                _ = self.get_weight(edge_type)
-                # 这里需要知道边的源和目标节点，通常在调用处处理
-                # 此处仅作为示例
-        
-        return weighted_matrix
+
 
 
 @dataclass
@@ -88,11 +66,11 @@ class PartitionConfig:
     size_lower = [int(5) for _ in range(num_communities)]
     size_upper = [int(20) for _ in range(num_communities)]
     pair_threshold = 0.0
-    time_limit_sec = 30
+    time_limit_sec = 60
     # 迭代/Agent 优化配置（默认开启迭代 + Agent，可在此修改）
 
     enable_agent_optimization = True
-    max_iterations = 3
+    max_iterations = 1
     edge_type_weights: EdgeTypeWeightConfig = None  # 边类型权重配置
     
     def __post_init__(self):
@@ -118,7 +96,7 @@ class SemanticEncoderConfig:
     model_name: str = "BAAI/bge-m3"
     output_dim: int = 256
     freeze_encoder: bool = False
-    max_length: int = 512  # BGE-M3 支持更长的序列
+    max_length: int = 512
 
 
 @dataclass
@@ -129,20 +107,6 @@ class FusionConfig:
     output_dim: int = 512
     num_heads: int = 8
     dropout: float = 0.1
-
-
-@dataclass
-class HierarchicalEncoderConfig:
-    """分层编码器配置"""
-    hidden_dim: int = 256
-    output_dim: int = 512
-    num_edge_types: int = 5
-    num_communities: int = 5
-    num_local_layers: int = 2
-    num_global_layers: int = 2
-    num_heads: int = 8
-    dropout: float = 0.1
-
 
 @dataclass
 class CodeGraphEncoderConfig:
@@ -195,7 +159,7 @@ MEDIUM_GRAPH_CONFIG = CodeGraphEncoderConfig(
         dropout=0.1
     ),
     semantic=SemanticEncoderConfig(
-        model_name="microsoft/codebert-base",
+        model_name="BAAI/bge-m3",
         output_dim=256,
         freeze_encoder=True
     ),
@@ -207,77 +171,6 @@ MEDIUM_GRAPH_CONFIG = CodeGraphEncoderConfig(
         dropout=0.1
     )
 )
-
-# 大规模图配置（1000-10000 节点）
-LARGE_GRAPH_CONFIG = HierarchicalEncoderConfig(
-    hidden_dim=256,
-    output_dim=512,
-    num_communities=10,
-    num_local_layers=2,
-    num_global_layers=1,
-    num_heads=4,
-    dropout=0.1
-)
-
-# 超大规模图配置（> 10000 节点）
-XLARGE_GRAPH_CONFIG = HierarchicalEncoderConfig(
-    hidden_dim=128,
-    output_dim=256,
-    num_communities=20,
-    num_local_layers=1,
-    num_global_layers=1,
-    num_heads=2,
-    dropout=0.1
-)
-
-# 轻量级配置（用于快速推理）
-LIGHTWEIGHT_CONFIG = CodeGraphEncoderConfig(
-    structural=StructuralEncoderConfig(
-        hidden_dim=128,
-        output_dim=128,
-        num_layers=1,
-        num_heads=4,
-        dropout=0.1
-    ),
-    semantic=SemanticEncoderConfig(
-        model_name="BAAI/bge-m3",
-        output_dim=128,
-        freeze_encoder=True,
-        max_length=512
-    ),
-    fusion=FusionConfig(
-        structural_dim=128,
-        semantic_dim=128,
-        output_dim=256,
-        num_heads=4,
-        dropout=0.1
-    )
-)
-
-# 高性能配置（用于最佳效果）
-HIGHPERFORMANCE_CONFIG = CodeGraphEncoderConfig(
-    structural=StructuralEncoderConfig(
-        hidden_dim=512,
-        output_dim=512,
-        num_layers=4,
-        num_heads=16,
-        dropout=0.1
-    ),
-    semantic=SemanticEncoderConfig(
-        model_name="BAAI/bge-m3",
-        output_dim=512,
-        freeze_encoder=False,
-        max_length=512
-    ),
-    fusion=FusionConfig(
-        structural_dim=512,
-        semantic_dim=512,
-        output_dim=1024,
-        num_heads=16,
-        dropout=0.1
-    )
-)
-
 
 def get_config_by_graph_size(num_nodes: int) -> CodeGraphEncoderConfig:
     """
@@ -291,33 +184,5 @@ def get_config_by_graph_size(num_nodes: int) -> CodeGraphEncoderConfig:
     """
     if num_nodes < 100:
         return SMALL_GRAPH_CONFIG
-    elif num_nodes < 1000:
+    else:
         return MEDIUM_GRAPH_CONFIG
-    else:
-        return LARGE_GRAPH_CONFIG
-
-
-def get_hierarchical_config_by_graph_size(num_nodes: int) -> HierarchicalEncoderConfig:
-    """
-    根据图的大小自动选择分层编码器配置
-    
-    Args:
-        num_nodes: 图中的节点数
-    
-    Returns:
-        推荐的分层编码器配置对象
-    """
-    if num_nodes < 1000:
-        return HierarchicalEncoderConfig(
-            hidden_dim=256,
-            output_dim=512,
-            num_communities=5,
-            num_local_layers=2,
-            num_global_layers=2
-        )
-    elif num_nodes < 10000:
-        return LARGE_GRAPH_CONFIG
-    else:
-        return XLARGE_GRAPH_CONFIG
-
-

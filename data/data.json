@@ -5,7 +5,8 @@
         "description": "JsonMessage节点用于创建、解析或处理JSON格式的消息，支持数据的序列化与反序列化，便于在网络间传输结构化信息。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "JSON消息处理"
     },
     {
         "id": 1,
@@ -17,7 +18,8 @@
         ],
         "edge_types": [
             "inherit"
-        ]
+        ],
+        "domains": "CDI Ping请求处理"
     },
     {
         "id": 2,
@@ -31,7 +33,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "Ping连接保持与资源集成"
     },
     {
         "id": 3,
@@ -45,7 +48,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "Servlet间通信测试"
     },
     {
         "id": 4,
@@ -59,7 +63,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "HTTP连接状态检查与服务升级"
     },
     {
         "id": 5,
@@ -71,7 +76,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "Ping拦截器"
     },
     {
         "id": 6,
@@ -83,7 +89,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "本地EJB Ping操作增强"
     },
     {
         "id": 7,
@@ -95,7 +102,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "报价数据管理"
     },
     {
         "id": 8,
@@ -103,7 +111,8 @@
         "description": "RunStatsDataBean 用于封装运行时统计数据，提供了一种结构化的方式来存储和访问如执行时间、调用次数等性能指标。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "运行时统计数据封装"
     },
     {
         "id": 9,
@@ -111,7 +120,8 @@
         "description": "KeyBlock代表一个包含关键数据或功能的代码块，通常用于加密、解密过程中的关键步骤或是程序中对重要信息进行处理的部分。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "关键数据处理块"
     },
     {
         "id": 10,
@@ -143,7 +153,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "直接交易执行"
     },
     {
         "id": 11,
@@ -155,7 +166,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "金融计算工具"
     },
     {
         "id": 12,
@@ -169,7 +181,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易参数配置"
     },
     {
         "id": 13,
@@ -181,7 +194,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "JSON数据解码"
     },
     {
         "id": 14,
@@ -189,7 +203,8 @@
         "description": "该代码节点用于通过CDI（Contexts and Dependency Injection）方式调用JSF（JavaServer Faces）中的Bean，实现Ping功能，通常用来测试或验证Bean的可达性和响应性。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "CDI方式JSF Bean Ping测试"
     },
     {
         "id": 15,
@@ -215,7 +230,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "市场概要信息单例管理"
     },
     {
         "id": 16,
@@ -227,7 +243,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "操作消息封装"
     },
     {
         "id": 17,
@@ -243,7 +260,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "JDBC数据库写入连接验证"
     },
     {
         "id": 18,
@@ -257,7 +275,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "Ping请求结果PDF生成"
     },
     {
         "id": 19,
@@ -273,7 +292,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易应用请求处理"
     },
     {
         "id": 20,
@@ -281,7 +301,8 @@
         "description": "PingSession2用于定期发送ping请求以检查与远程服务器的连接状态，确保通信链路的持续可用性。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "会话连接状态检测"
     },
     {
         "id": 21,
@@ -289,7 +310,8 @@
         "description": "PingWebSocketTextSync节点用于通过WebSocket连接发送文本格式的Ping消息，并同步等待Pong响应，以测试或保持连接活跃。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "WebSocket文本Ping同步检测"
     },
     {
         "id": 22,
@@ -297,7 +319,8 @@
         "description": "PingManagedExecutor 是一个用于执行管理任务的调度器，特别设计用来定期检查或'ping'服务以确保其可用性。它能够配置执行频率和超时设置，并支持异步操作。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "服务可用性管理任务调度器"
     },
     {
         "id": 23,
@@ -311,7 +334,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "本地会话连接状态检测"
     },
     {
         "id": 24,
@@ -331,7 +355,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "三维模型数据流处理"
     },
     {
         "id": 25,
@@ -339,7 +364,8 @@
         "description": "PingSession1是一个用于检查与特定会话连接状态的功能节点，通过发送ping请求来验证通信是否正常。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "会话连接状态检测"
     },
     {
         "id": 26,
@@ -347,7 +373,8 @@
         "description": "PingServlet是一个用于响应客户端ping请求的Java Servlet，主要功能是检测服务器是否可达及响应时间。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "服务器可达性与响应时间检测"
     },
     {
         "id": 27,
@@ -355,7 +382,8 @@
         "description": "PingEJBLocal是一个本地Enterprise Java Bean (EJB)接口，用于在同一Java虚拟机内执行远程方法调用，通常用来测试EJB容器的响应性和连通性。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "本地EJB连通性测试"
     },
     {
         "id": 28,
@@ -385,7 +413,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易业务逻辑处理会话Bean"
     },
     {
         "id": 29,
@@ -393,7 +422,8 @@
         "description": "ExternalContextProducer用于创建和管理外部上下文，支持将外部系统或服务的信息集成到当前应用环境中，促进不同系统间的通信与数据交换。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "外部上下文集成与管理"
     },
     {
         "id": 30,
@@ -401,7 +431,8 @@
         "description": "PingSession3 用于定期发送ping请求以检查会话的活跃状态，确保连接或通信通道保持开放和响应。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "会话活跃状态检测器"
     },
     {
         "id": 31,
@@ -417,7 +448,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "数据库数据读取与JSP展示桥接"
     },
     {
         "id": 32,
@@ -429,7 +461,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "账户个人资料数据封装"
     },
     {
         "id": 33,
@@ -443,7 +476,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "报价数据封装"
     },
     {
         "id": 34,
@@ -469,7 +503,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易配置管理Servlet"
     },
     {
         "id": 35,
@@ -489,7 +524,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易数据库构建与管理"
     },
     {
         "id": 36,
@@ -497,7 +533,8 @@
         "description": "该代码节点用于通过JSONP技术实现跨域请求，主要用于从远程服务器获取数据并检查其可用性或响应时间。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "JSONP跨域请求与服务可用性检测"
     },
     {
         "id": 37,
@@ -505,7 +542,8 @@
         "description": "TimerStat是一个用于统计时间的代码节点，主要用于记录和分析程序运行时长，帮助开发者了解各部分代码执行效率。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "程序执行时间统计分析"
     },
     {
         "id": 38,
@@ -521,7 +559,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "按键序列直接处理器"
     },
     {
         "id": 39,
@@ -539,7 +578,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "订单警报筛选与处理"
     },
     {
         "id": 40,
@@ -547,7 +587,8 @@
         "description": "该代码节点用于显式地触发垃圾回收过程，以清理不再使用的对象并释放内存。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "垃圾回收触发器"
     },
     {
         "id": 41,
@@ -561,7 +602,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "MongoDB性能监控与统计信息管理"
     },
     {
         "id": 42,
@@ -589,7 +631,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易请求核心控制器"
     },
     {
         "id": 43,
@@ -601,7 +644,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "交易操作指令生成器"
     },
     {
         "id": 44,
@@ -619,7 +663,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "市场摘要实时推送服务"
     },
     {
         "id": 45,
@@ -633,7 +678,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "动作数据解析器"
     },
     {
         "id": 46,
@@ -645,7 +691,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "Ping请求处理与JSP响应集成"
     },
     {
         "id": 47,
@@ -653,7 +700,8 @@
         "description": "该代码节点用于异步地向WebSocket服务器发送文本消息，并等待接收响应，常用于检测连接状态或进行简单的通讯测试。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "WebSocket异步文本消息通信测试器"
     },
     {
         "id": 48,
@@ -669,7 +717,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易上下文生命周期管理器"
     },
     {
         "id": 49,
@@ -677,7 +726,8 @@
         "description": "该代码节点用于通过WebSocket协议发送二进制格式的Ping帧，以检查连接状态或维持活动连接。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "WebSocket二进制Ping帧连接检测器"
     },
     {
         "id": 50,
@@ -693,7 +743,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "JDBC连接有效性检测器"
     },
     {
         "id": 51,
@@ -701,7 +752,8 @@
         "description": "该代码节点主要负责生成并发送HTTP响应至客户端，特别是在处理Ping请求时提供快速响应。它通常用于健康检查或服务可用性验证场景中。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "Ping请求的HTTP快速响应生成器"
     },
     {
         "id": 52,
@@ -713,7 +765,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "CDI Bean管理与Ping请求处理"
     },
     {
         "id": 53,
@@ -721,7 +774,8 @@
         "description": "PingCDIBean 是一个用于测试或验证CDI（Contexts and Dependency Injection）容器中Bean是否正确部署和可用的简单组件。它通常实现了一个基本方法来发送并接收'ping'响应，以此来确认连接性和功能性。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "CDI Bean可用性验证组件"
     },
     {
         "id": 54,
@@ -735,7 +789,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "CDI集成的Ping请求响应Servlet"
     },
     {
         "id": 55,
@@ -743,7 +798,8 @@
         "description": "PingServlet2IncludeRcv是一个用于处理包含请求的Servlet代码节点，主要用于接收并响应通过请求包含机制传递过来的数据。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "请求包含数据接收与响应处理器"
     },
     {
         "id": 56,
@@ -755,7 +811,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "JSON数据编码器"
     },
     {
         "id": 57,
@@ -771,7 +828,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易场景请求处理Servlet"
     },
     {
         "id": 58,
@@ -789,7 +847,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "JSF应用身份验证过滤器"
     },
     {
         "id": 59,
@@ -797,7 +856,8 @@
         "description": "该代码节点用于检查或测试与指定托管线程的连接状态。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "托管线程连接状态检测器"
     },
     {
         "id": 60,
@@ -811,7 +871,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "WebSocket JSON Ping消息连接管理器"
     },
     {
         "id": 61,
@@ -829,7 +890,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "市场摘要数据封装"
     },
     {
         "id": 62,
@@ -843,7 +905,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "订单数据封装载体"
     },
     {
         "id": 63,
@@ -851,7 +914,8 @@
         "description": "PingBean是一个用于执行网络连通性测试的简单组件，主要功能是发送ICMP请求到指定的目标地址，并接收响应以判断目标是否可达。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "网络连通性测试组件"
     },
     {
         "id": 64,
@@ -865,7 +929,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "账户数据封装传输对象"
     },
     {
         "id": 65,
@@ -873,7 +938,8 @@
         "description": "展示最近股票变动的列表。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "最近股票变动列表展示"
     },
     {
         "id": 66,
@@ -881,7 +947,8 @@
         "description": "PingServlet2JNDI 是一个用于测试JNDI连接的Servlet，它通过尝试访问预设的JNDI资源来验证应用服务器上JNDI配置的正确性和可用性。",
         "methods": [],
         "dependencies": [],
-        "edge_types": []
+        "edge_types": [],
+        "domains": "JNDI连接可用性验证 Servlet"
     },
     {
         "id": 67,
@@ -895,7 +962,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "持有数据封装载体"
     },
     {
         "id": 68,
@@ -917,7 +985,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "JSF外部静态资源引用管理器"
     },
     {
         "id": 69,
@@ -943,7 +1012,8 @@
             "call",
             "call",
             "call"
-        ]
+        ],
+        "domains": "交易动作执行器"
     },
     {
         "id": 70,
@@ -957,7 +1027,8 @@
         "edge_types": [
             "call",
             "call"
-        ]
+        ],
+        "domains": "运行时信息记录与监控"
     },
     {
         "id": 71,
@@ -969,7 +1040,8 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "数据库连接连通性监控 Servlet"
     },
     {
         "id": 72,
@@ -981,6 +1053,7 @@
         ],
         "edge_types": [
             "call"
-        ]
+        ],
+        "domains": "Servlet间Ping请求接收与健康检查器"
     }
 ]
